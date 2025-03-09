@@ -5,8 +5,8 @@
 
 #define	ICON_V_OFF	14
 
-#define KEYPRESS(X)	(X.type == SDL_KEYDOWN)
-#define BUTTONPRESS(X)	(X.type == SDL_MOUSEBUTTONDOWN)
+#define KEYPRESS(X)	(X.type == SDL_EVENT_KEY_DOWN)
+#define BUTTONPRESS(X)	(X.type == SDL_EVENT_MOUSE_BUTTON_DOWN)
 
 /* ----------------------------------------------------------------- */
 /* -- Tell 'em about the game */
@@ -44,8 +44,8 @@ void DoAbout(void)
 				Bool next_screen;
 
 				next_screen = (
-					(event.type == SDL_MOUSEBUTTONDOWN) ||
-					(event.key.keysym.sym == SDLK_RETURN)
+					(event.type == SDL_EVENT_MOUSE_BUTTON_DOWN) ||
+					(event.key.key == SDLK_RETURN)
 					);
 				drawscreen = true;
 			

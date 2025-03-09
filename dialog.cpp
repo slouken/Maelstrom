@@ -26,18 +26,21 @@ Mac_Button::Mac_Button(int x, int y, int width, int height,
 	Height = height;
 
 	/* Build image of the button */
-	button = SDL_CreateRGBSurface(SDL_SWSURFACE, Width, Height,
-						8, 0, 0, 0, 0);
+	button = SDL_CreateSurface(Width, Height, SDL_PIXELFORMAT_INDEX8);
 	if ( button == NULL ) {
 		SetError("%s", SDL_GetError());
 		return;
 	}
-	button->format->palette->colors[0].r = 0xFF;
-	button->format->palette->colors[0].g = 0xFF;
-	button->format->palette->colors[0].b = 0xFF;
-	button->format->palette->colors[1].r = 0x00;
-	button->format->palette->colors[1].g = 0x00;
-	button->format->palette->colors[1].b = 0x00;
+	SDL_Palette* palette = SDL_GetSurfacePalette(button);
+	if (palette) {
+		palette->colors[0].r = 0xFF;
+		palette->colors[0].g = 0xFF;
+		palette->colors[0].b = 0xFF;
+		palette->colors[1].r = 0x00;
+		palette->colors[1].g = 0x00;
+		palette->colors[1].b = 0x00;
+		SDL_SetSurfacePalette(button, palette);
+	}
 	textb = fontserv->TextImage(text, font, STYLE_NORM,
 					0x00, 0x00, 0x00);
 	if ( textb != NULL ) {
@@ -281,15 +284,15 @@ Maclike_Dialog:: Run(int expand_steps)
 
 		switch (event.type) {
 			/* -- Handle mouse clicks */
-			case SDL_MOUSEBUTTONDOWN:
+			case SDL_EVENT_MOUSE_BUTTON_DOWN:
 	for ( delem = dialog_list.next; delem; delem = delem->next )
-		(delem->dialog)->HandleButtonPress(event.button.x, 
-				event.button.y, event.button.button, &done);
+		(delem->dialog)->HandleButtonPress((int)event.button.x, 
+				(int)event.button.y, event.button.button, &done);
 				break;
 			/* -- Handle key presses */
-			case SDL_KEYDOWN:
+			case SDL_EVENT_KEY_DOWN:
 	for ( delem = dialog_list.next; delem; delem = delem->next )
-		(delem->dialog)->HandleKeyPress(event.key.keysym, &done);
+		(delem->dialog)->HandleKeyPress(event.key.key, &done);
 				break;
 		}
 	}

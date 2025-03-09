@@ -36,10 +36,10 @@ public:
 		}
 	}
 	virtual void SetKeyPress(void (*new_key_callback)
-				(SDL_Keysym key, int *doneflag)) {
+				(SDL_Keycode key, int *doneflag)) {
 		key_callback = new_key_callback;
 	}
-	virtual void HandleKeyPress(SDL_Keysym key, int *doneflag) {
+	virtual void HandleKeyPress(SDL_Keycode key, int *doneflag) {
 		if ( key_callback ) {
 			(*key_callback)(key, doneflag);
 		}
@@ -58,12 +58,20 @@ public:
 
 	static void EnableText(void) {
 		if ( text_enabled++ == 0 ) {
-			SDL_StartTextInput();
+			SDL_Window **windows = SDL_GetWindows(NULL);
+			if (windows) {
+				SDL_StartTextInput(windows[0]);
+				SDL_free(windows);
+			}
 		}
 	}
 	static void DisableText(void) {
 		if ( --text_enabled == 0 ) {
-			SDL_StopTextInput();
+			SDL_Window **windows = SDL_GetWindows(NULL);
+			if (windows) {
+				SDL_StopTextInput(windows[0]);
+				SDL_free(windows);
+			}
 		}
 	}
 
@@ -77,7 +85,7 @@ protected:
 	FrameBuf *Screen;
 	int  X, Y;
 	void (*button_callback)(int x, int y, int button, int *doneflag);
-	void (*key_callback)(SDL_Keysym key, int *doneflag);
+	void (*key_callback)(SDL_Keycode key, int *doneflag);
 
 	/* Utility routines for dialogs */
 	int IsSensitive(SDL_Rect *area, int x, int y) {
@@ -112,7 +120,7 @@ public:
 		const char *text, MFont *font, FontServ *fontserv, 
 				int (*callback)(void));
 	virtual ~Mac_Button() {
-		SDL_FreeSurface(button);
+		SDL_DestroySurface(button);
 	}
 
 	virtual void Map(int Xoff, int Yoff, FrameBuf *screen,
@@ -129,12 +137,16 @@ public:
 		sensitive.h = Height;
 
 		/* Map the bitmap image */
-		button->format->palette->colors[0].r = R_bg;
-		button->format->palette->colors[0].g = G_bg;
-		button->format->palette->colors[0].b = B_bg;
-		button->format->palette->colors[1].r = R_fg;
-		button->format->palette->colors[1].g = G_fg;
-		button->format->palette->colors[1].b = B_fg;
+		SDL_Palette* palette = SDL_GetSurfacePalette(button);
+		if (palette) {
+			palette->colors[0].r = R_bg;
+			palette->colors[0].g = G_bg;
+			palette->colors[0].b = B_bg;
+			palette->colors[1].r = R_fg;
+			palette->colors[1].g = G_fg;
+			palette->colors[1].b = B_fg;
+			SDL_SetSurfacePalette(button, palette);
+		}
 	}
 	virtual void Show(void) {
 		Screen->QueueBlit(X, Y, button, NOCLIP);
@@ -221,8 +233,8 @@ public:
 						int (*callback)(void));
 	virtual ~Mac_DefaultButton() { }
 
-	virtual void HandleKeyPress(SDL_Keysym key, int *doneflag) {
-		if ( key.sym == SDLK_RETURN )
+	virtual void HandleKeyPress(SDL_Keycode key, int *doneflag) {
+		if ( key == SDLK_RETURN )
 			ActivateButton(doneflag);
 	}
 
@@ -320,9 +332,13 @@ public:
 		Bg = Screen->MapRGB(R_bg, G_bg, B_bg);
 
 		/* Map the checkbox text */
-		label->format->palette->colors[1].r = R_fg;
-		label->format->palette->colors[1].g = G_fg;
-		label->format->palette->colors[1].b = B_fg;
+		SDL_Palette* palette = SDL_GetSurfacePalette(label);
+		if (palette) {
+			palette->colors[1].r = R_fg;
+			palette->colors[1].g = G_fg;
+			palette->colors[1].b = B_fg;
+			SDL_SetSurfacePalette(label, palette);
+		}
 	}
 	virtual void Show(void) {
 		Screen->DrawRect(X, Y, CHECKBOX_SIZE, CHECKBOX_SIZE, Fg);
@@ -440,9 +456,14 @@ public:
 			radio->y += Yoff;
 			radio->sensitive.x += Xoff;
 			radio->sensitive.y += Yoff;
-			radio->label->format->palette->colors[1].r = R_fg;
-			radio->label->format->palette->colors[1].g = G_fg;
-			radio->label->format->palette->colors[1].b = B_fg;
+
+			SDL_Palette* palette = SDL_GetSurfacePalette(radio->label);
+			if (palette) {
+				palette->colors[1].r = R_fg;
+				palette->colors[1].g = G_fg;
+				palette->colors[1].b = B_fg;
+				SDL_SetSurfacePalette(radio->label, palette);
+			}
 		}
 	}
 	virtual void Show(void) {
@@ -536,10 +557,10 @@ public:
 			}
 		}
 	}
-	virtual void HandleKeyPress(SDL_Keysym key, int *doneflag) {
+	virtual void HandleKeyPress(SDL_Keycode key, int *doneflag) {
 		int n;
 
-		switch (key.sym) {
+		switch (key) {
 			case SDLK_TAB:
 				current->hilite = 0;
 				Update_Entry(current);
@@ -567,11 +588,11 @@ public:
 			default:
 				if ( (current->end+Cwidth) > current->width )
 					return;
-				// FIXME: We should use SDL_TEXTINPUT, but this class isn't used, so...
-				if ( key.sym <= 0x7F ) {
+				// FIXME: We should use SDL_EVENT_TEXT_INPUT, but this class isn't used, so...
+				if ( key <= 0x7F ) {
 					current->hilite = 0;
 					n = strlen(current->variable);
-					current->variable[n] = (char)key.sym;
+					current->variable[n] = (char)key;
 					current->variable[n+1] = '\0';
 					Update_Entry(current);
 					DrawCursor(current);
@@ -729,10 +750,10 @@ public:
 			}
 		}
 	}
-	virtual void HandleKeyPress(SDL_Keysym key, int *doneflag) {
+	virtual void HandleKeyPress(SDL_Keycode key, int *doneflag) {
 		int n;
 
-		switch (key.sym) {
+		switch (key) {
 			case SDLK_TAB:
 				current->hilite = 0;
 				Update_Entry(current);
@@ -765,7 +786,7 @@ public:
 			case SDLK_7:
 			case SDLK_8:
 			case SDLK_9:
-				n = (key.sym-SDLK_0);
+				n = (key-SDLK_0);
 				if ( (current->end+Cwidth) > current->width )
 					return;
 				if ( current->hilite ) {

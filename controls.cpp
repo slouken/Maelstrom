@@ -22,7 +22,7 @@ Controls controls =
 Controls controls =
    { SDLK_PAUSE,SDLK_SPACE,SDLK_UP,SDLK_RIGHT,SDLK_LEFT,SDLK_TAB,SDLK_ESCAPE };
 #endif
-SDL_Keymod gToggleFullscreenMod = KMOD_ALT;
+SDL_Keymod gToggleFullscreenMod = SDL_KMOD_ALT;
 
 #ifdef MOVIE_SUPPORT
 int	gMovie = 0;
@@ -83,7 +83,7 @@ static FILE *OpenData(const char *mode, const char **fname)
 	return(data);
 }
 
-static bool ControlsUseKey(SDL_KeyCode key)
+static bool ControlsUseKey(SDL_Keycode key)
 {
 	return (controls.gPauseControl == key ||
 	        controls.gShieldControl == key ||
@@ -97,13 +97,13 @@ static bool ControlsUseKey(SDL_KeyCode key)
 void UpdateToggleFullscreenShortcut()
 {
 	if (!ControlsUseKey(SDLK_LALT) && !ControlsUseKey(SDLK_RALT)) {
-		gToggleFullscreenMod = KMOD_ALT;
+		gToggleFullscreenMod = SDL_KMOD_ALT;
 	} else if (!ControlsUseKey(SDLK_LSHIFT) && !ControlsUseKey(SDLK_RSHIFT)) {
-		gToggleFullscreenMod = KMOD_SHIFT;
+		gToggleFullscreenMod = SDL_KMOD_SHIFT;
 	} else if (!ControlsUseKey(SDLK_LCTRL) && !ControlsUseKey(SDLK_RCTRL)) {
-		gToggleFullscreenMod = KMOD_CTRL;
+		gToggleFullscreenMod = SDL_KMOD_CTRL;
 	} else {
-		gToggleFullscreenMod = KMOD_NONE;
+		gToggleFullscreenMod = SDL_KMOD_NONE;
 	}
 }
 
@@ -205,20 +205,20 @@ static int Cancel_callback(void) {
 	valid = 0;
 	return(1);
 }
-static void BoxKeyPress(SDL_Keysym key, int *doneflag)
+static void BoxKeyPress(SDL_Keycode key, int *doneflag)
 {
 	SDL_Color black = { 0x00, 0x00, 0x00, 0 };
 	SDL_Color white = { 0xFF, 0xFF, 0xFF, 0 };
 	int i;
 	char keyname[128];
 
-	if ( key.sym == *checkboxes[currentbox].control )
+	if ( key == *checkboxes[currentbox].control )
 		return;
 
 	/* Make sure the key isn't in use! */
 	for ( i=0; i<NUM_CTLS; ++i ) {
-		if ( key.sym == *checkboxes[i].control ) {
-			key.sym = (SDL_Keycode)*checkboxes[currentbox].control;
+		if ( key == *checkboxes[i].control ) {
+			key = (SDL_Keycode)*checkboxes[currentbox].control;
 
 			/* Clear the current text */
 			fontserv->InvertText(keynames[currentbox]);
@@ -252,7 +252,7 @@ static void BoxKeyPress(SDL_Keysym key, int *doneflag)
 	fontserv->FreeText(keynames[currentbox]);
 
 	/* Display the new key */
-	*checkboxes[currentbox].control = key.sym;
+	*checkboxes[currentbox].control = key;
 	KeyName(*checkboxes[currentbox].control, keyname);
 	keynames[currentbox] = fontserv->TextImage(keyname, chicago, STYLE_NORM,
 								black, white);
@@ -367,7 +367,7 @@ static void HandleEvent(SDL_Event *event)
 	switch (event->type) {
 #ifdef SDL_INIT_JOYSTICK
 		/* -- Handle joystick axis motion */
-		case SDL_JOYAXISMOTION:
+		case SDL_EVENT_JOYSTICK_AXIS_MOTION:
 			/* X-Axis - rotate right/left */
 			if ( event->jaxis.axis == 0 ) {
 				if ( event->jaxis.value < -8000 ) {
@@ -393,9 +393,9 @@ static void HandleEvent(SDL_Event *event)
 			break;
 
 		/* -- Handle joystick button presses/releases */
-		case SDL_JOYBUTTONDOWN:
-		case SDL_JOYBUTTONUP:
-			if ( event->jbutton.state == SDL_PRESSED ) {
+		case SDL_EVENT_JOYSTICK_BUTTON_DOWN:
+		case SDL_EVENT_JOYSTICK_BUTTON_UP:
+			if ( event->jbutton.down ) {
 				if ( event->jbutton.button == 0 ) {
 					SetControl(FIRE_KEY, 1);
 				} else
@@ -414,17 +414,17 @@ static void HandleEvent(SDL_Event *event)
 #endif
 
 		/* -- Handle key presses/releases */
-		case SDL_KEYDOWN:
+		case SDL_EVENT_KEY_DOWN:
 			/* -- Handle ALT-ENTER hotkey */
-			if ( (event->key.keysym.sym == SDLK_RETURN) &&
-			     (event->key.keysym.mod & gToggleFullscreenMod) ) {
+			if ( (event->key.key == SDLK_RETURN) &&
+			     (event->key.mod & gToggleFullscreenMod) ) {
 				screen->ToggleFullScreen();
 				break;
 			}
-		case SDL_KEYUP:
+		case SDL_EVENT_KEY_UP:
 			/* -- Handle normal key bindings */
-			key = event->key.keysym.sym;
-			if ( event->key.state == SDL_PRESSED ) {
+			key = event->key.key;
+			if ( event->key.down) {
 				/* Check for various control keys */
 				if ( key == controls.gFireControl )
 					SetControl(FIRE_KEY, 1);
@@ -440,7 +440,7 @@ static void HandleEvent(SDL_Event *event)
 					SetControl(PAUSE_KEY, 1);
 				else if ( key == controls.gQuitControl )
 					SetControl(ABORT_KEY, 1);
-				else if ( SpecialKey(event->key.keysym) == 0 )
+				else if ( SpecialKey(key) == 0 )
 					/* The key has been handled */;
 				else if ( key == SDLK_F3 ) {
 					/* Special key --
@@ -476,7 +476,7 @@ mesg("Movie is %s...\n", gMovie ? "started" : "stopped");
 			}
 			break;
 
-		case SDL_QUIT:
+		case SDL_EVENT_QUIT:
 			SetControl(ABORT_KEY, 1);
 			break;
 	}
@@ -507,7 +507,7 @@ int DropEvents(void)
 	int keys = 0;
 
 	while ( SDL_PollEvent(&event) ) {
-		if ( event.type == SDL_KEYDOWN ) {
+		if ( event.type == SDL_EVENT_KEY_DOWN ) {
 			++keys;
 		}
 	}

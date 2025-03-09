@@ -63,11 +63,17 @@ public:
 		return(SDL_WaitEvent(event));
 	}
 	void ToggleFullScreen(void) {
-		if (SDL_GetWindowFlags(window) & SDL_WINDOW_FULLSCREEN_DESKTOP) {
-			SDL_SetWindowFullscreen(window, 0);
+		if (SDL_GetWindowFlags(window) & SDL_WINDOW_FULLSCREEN) {
+			SDL_SetWindowFullscreen(window, false);
 		} else {
-			SDL_SetWindowFullscreen(window, SDL_WINDOW_FULLSCREEN_DESKTOP);
+			SDL_SetWindowFullscreen(window, true);
 		}
+	}
+	void StartTextInput() {
+		SDL_StartTextInput(window);
+	}
+	void StopTextInput() {
+		SDL_StopTextInput(window);
 	}
 
 	/* Locking blitting and update routines */
@@ -92,9 +98,6 @@ public:
 	}
 	Uint16 Height(void) {
 		return(screen->h);
-	}
-	SDL_PixelFormat *Format(void) {
-		return(screenfg->format);
 	}
 
 	/* Set the drawing focus (foreground or background) */
@@ -130,10 +133,10 @@ public:
 
 	/* Cursor handling routines */
 	void ShowCursor(void) {
-		SDL_ShowCursor(1);
+		SDL_ShowCursor();
 	}
 	void HideCursor(void) {
-		SDL_ShowCursor(0);
+		SDL_HideCursor();
 	}
 	void SetCaption(const char *caption) {
 		SDL_SetWindowTitle(window, caption);
@@ -156,7 +159,7 @@ private:
 	SDL_Palette *palette;
 	Uint8 *screen_mem;
 	Uint32 colormap[256];
-	int faded;
+	bool faded;
 
 	/* Error message */
 	void SetError(const char *fmt, ...) {

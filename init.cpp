@@ -726,9 +726,9 @@ int DoInitializations(Uint32 video_flags)
 #ifdef SDL_INIT_JOYSTICK
 	init_flags |= SDL_INIT_JOYSTICK;
 #endif
-	if ( SDL_Init(init_flags) < 0 ) {
+	if ( !SDL_Init(init_flags) ) {
 		init_flags &= ~SDL_INIT_JOYSTICK;
-		if ( SDL_Init(init_flags) < 0 ) {
+		if ( !SDL_Init(init_flags) ) {
 			error("Couldn't initialize SDL: %s\n", SDL_GetError());
 			return(-1);
 		}
@@ -744,11 +744,15 @@ int DoInitializations(Uint32 video_flags)
 
 #ifdef SDL_INIT_JOYSTICK
 	/* Initialize the first joystick */
-	if ( SDL_NumJoysticks() > 0 ) {
-		if ( SDL_JoystickOpen(0) == NULL ) {
-			error("Warning: Couldn't open joystick '%s' : %s\n",
-				SDL_JoystickName(0), SDL_GetError());
+	SDL_JoystickID* joysticks = SDL_GetJoysticks(NULL);
+	if (joysticks) {
+		if (joysticks[0]) {
+			if (SDL_OpenJoystick(joysticks[0]) == NULL) {
+				error("Warning: Couldn't open joystick '%s' : %s\n",
+					SDL_GetJoystickName(0), SDL_GetError());
+			}
 		}
+		SDL_free(joysticks);
 	}
 #endif
 
@@ -782,7 +786,7 @@ int DoInitializations(Uint32 video_flags)
 	}
 	screen->SetCaption("Maelstrom");
 	atexit(CleanUp);		// Need to reset this under X11 DGA
-	SDL_FreeSurface(icon);
+	SDL_DestroySurface(icon);
 
 	/* -- We want to access the FULL screen! */
 	SetRect(&gScrnRect, 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);

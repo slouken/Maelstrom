@@ -10,6 +10,8 @@
 /* 								 */
 /* ------------------------------------------------------------- */
 
+#include <SDL3/SDL_main.h>
+
 #include "Maelstrom_Globals.h"
 #include "buttonlist.h"
 #include "load.h"
@@ -121,7 +123,7 @@ static void RunSpeedTest(void)
 {
 	const int test_reps = 100;	/* How many full cycles to run */
 
-	Uint32 then, now;
+	Uint64 then, now;
 	int i, frame, x=((640/2)-16), y=((480/2)-16), onscreen=0;
 
 	screen->Clear();
@@ -170,7 +172,7 @@ int main(int argc, char *argv[])
 	/* Command line flags */
 	int doprinthigh = 0;
 	int speedtest = 0;
-	Uint32 video_flags = SDL_WINDOW_FULLSCREEN_DESKTOP;
+	Uint32 video_flags = SDL_WINDOW_FULLSCREEN;
 
 	/* Normal variables */
 	SDL_Event event;
@@ -194,7 +196,7 @@ int main(int argc, char *argv[])
 	/* Parse command line arguments */
 	for ( progname=argv[0]; --argc; ++argv ) {
 		if ( strcmp(argv[1], "-windowed") == 0 ) {
-			video_flags &= ~SDL_WINDOW_FULLSCREEN_DESKTOP;
+			video_flags &= ~SDL_WINDOW_FULLSCREEN;
 		} else
 		if ( strcmp(argv[1], "-gamma") == 0 ) {
 			int gammacorrect;
@@ -301,32 +303,32 @@ int main(int argc, char *argv[])
 		screen->WaitEvent(&event);
 
 		/* -- Handle it! */
-		if ( event.type == SDL_KEYDOWN ) {
-			switch (event.key.keysym.sym) {
+		if ( event.type == SDL_EVENT_KEY_DOWN ) {
+			switch (event.key.key) {
 
 				/* -- Toggle fullscreen */
 				case SDLK_RETURN:
-					if ( event.key.keysym.mod & gToggleFullscreenMod )
+					if (event.key.mod & gToggleFullscreenMod )
 						screen->ToggleFullScreen();
 					break;
 
 				/* -- About the game...*/
-				case SDLK_a:
+				case SDLK_A:
 					RunDoAbout();
 					break;
 
 				/* -- Configure the controls */
-				case SDLK_c:
+				case SDLK_C:
 					RunConfigureControls();
 					break;
 
 				/* -- Start the game */
-				case SDLK_p:
+				case SDLK_P:
 					RunPlayGame();
 					break;
 
 				/* -- Start the game */
-				case SDLK_l:
+				case SDLK_L:
 					Delay(SOUND_DELAY);
 					sound->PlaySound(gLuckySound, 5);
 					gStartLevel = GetStartLevel();
@@ -339,7 +341,7 @@ int main(int argc, char *argv[])
 					break;
 
 				/* -- Let them leave */
-				case SDLK_q:
+				case SDLK_Q:
 					RunQuitGame();
 					break;
 
@@ -354,19 +356,19 @@ int main(int argc, char *argv[])
 				case SDLK_6:
 				case SDLK_7:
 				case SDLK_8:
-					SetSoundLevel(event.key.keysym.sym
+					SetSoundLevel(event.key.key
 								- SDLK_0);
 					break;
 
 				/* -- Give 'em a little taste of the peppers */
-				case SDLK_x:
+				case SDLK_X:
 					Delay(SOUND_DELAY);
 					sound->PlaySound(gEnemyAppears, 5);
 					ShowDawn();
 					break;
 
 				/* -- Zap the high scores */
-				case SDLK_z:
+				case SDLK_Z:
 					RunZapScores();
 					break;
 						
@@ -393,12 +395,12 @@ int main(int argc, char *argv[])
 			}
 		} else
 		/* -- Handle mouse clicks */
-		if ( event.type == SDL_MOUSEBUTTONDOWN ) {
-			buttons.Activate_Button(event.button.x, 
-						event.button.y);
+		if ( event.type == SDL_EVENT_MOUSE_BUTTON_DOWN ) {
+			buttons.Activate_Button((Uint16)event.button.x, 
+						(Uint16)event.button.y);
 		} else
 		/* -- Handle window close requests */
-		if ( event.type == SDL_QUIT ) {
+		if ( event.type == SDL_EVENT_QUIT ) {
 			RunQuitGame();
 		}
 	}

@@ -95,9 +95,9 @@ int InitPlayerSprites(void)
 	return(0);
 }
 
-int SpecialKey(SDL_Keysym key)
+int SpecialKey(SDL_Keycode key)
 {
-	if ( key.sym == SDLK_F1 ) {
+	if ( key == SDLK_F1 ) {
 		/* Special key -- switch displayed player */
 		if ( ++gDisplayed == gNumPlayers )
 			gDisplayed = 0;

@@ -3,8 +3,8 @@
 
 #include <stdlib.h>
 
-#include "SDL_net.h"
-#include "SDL_endian.h"
+#include <SDL3/SDL.h>
+#include <SDL3_net/SDL_net.h>
 
 #include "Maelstrom_Globals.h"
 #include "netplay.h"
@@ -14,30 +14,31 @@
 int   gNumPlayers;
 int   gOurPlayer;
 int   gDeathMatch;
-UDPsocket gNetFD;
+SDLNet_DatagramSocket *gNetFD;
 
 static int            GotPlayer[MAX_PLAYERS];
-static IPaddress      PlayAddr[MAX_PLAYERS];
-static IPaddress      ServAddr;
+static SDLNet_Address      *PlayAddr[MAX_PLAYERS];
+static Uint16               PlayPort[MAX_PLAYERS];
+static SDLNet_Address      *ServAddr;
 static int            FoundUs, UseServer;
 static Uint32         NextFrame;
-UDPpacket            *OutBound[2];
+SDLNet_Datagram            *OutBound[2];
 static int            CurrOut;
 /* This is the data offset of a SYNC packet */
 #define PDATA_OFFSET	(1+1+sizeof(Uint32)+sizeof(Uint32))
 
 /* We keep one packet backlogged for retransmission */
-#define OutBuf		OutBound[CurrOut]->data
-#define OutLen		OutBound[CurrOut]->len
-#define LastBuf		OutBound[!CurrOut]->data
-#define LastLen		OutBound[!CurrOut]->len
+#define OutBuf		OutBound[CurrOut]->buf
+#define OutLen		OutBound[CurrOut]->buflen
+#define LastBuf		OutBound[!CurrOut]->buf
+#define LastLen		OutBound[!CurrOut]->buflen
 
 static unsigned char *SyncPtrs[2][MAX_PLAYERS];
 static unsigned char  SyncBufs[2][MAX_PLAYERS][BUFSIZ];
 static int            SyncLens[2][MAX_PLAYERS];
 static int            ThisSyncs[2];
 static int            CurrIn;
-static SDLNet_SocketSet SocketSet;
+static void *SocketSet[MAX_PLAYERS];
 
 /* We cache one packet if the other player is ahead of us */
 #define SyncPtr		SyncPtrs[CurrIn]
@@ -51,13 +52,42 @@ static SDLNet_SocketSet SocketSet;
 
 #define TOGGLE(var)	var = !var
 
+static SDLNet_Datagram* SDLNet_AllocPacket(size_t size)
+{
+	SDLNet_Datagram* packet = (SDLNet_Datagram*)SDL_calloc(1, sizeof(*packet) + size);
+	if (packet) {
+		packet->buf = (Uint8*)(packet + 1);
+		packet->buflen = size;
+	}
+	return packet;
+}
+
+SDL_FORCE_INLINE void SDLNet_Write16(Uint16 value, void* areap)
+{
+	*(Uint16*)areap = SDL_Swap16BE(value);
+}
+
+SDL_FORCE_INLINE void SDLNet_Write32(Uint32 value, void* areap)
+{
+	*(Uint32*)areap = SDL_Swap32BE(value);
+}
+
+SDL_FORCE_INLINE Uint16 SDLNet_Read16(const void* areap)
+{
+	return SDL_Swap16BE(*(const Uint16*)areap);
+}
+
+SDL_FORCE_INLINE Uint32 SDLNet_Read32(const void* areap)
+{
+	return SDL_Swap32BE(*(const Uint32*)areap);
+}
 
 int InitNetData(void)
 {
 	int i;
 
 	/* Initialize the networking subsystem */
-	if ( SDLNet_Init() < 0 ) {
+	if ( !SDLNet_Init() ) {
 		error("NetLogic: Couldn't initialize networking!\n");
 		return(-1);
 	}
@@ -82,11 +112,11 @@ int InitNetData(void)
 		SyncPtrs[0][i] = NULL;
 		SyncPtrs[1][i] = NULL;
 	}
-	OutBound[0]->data[0] = SYNC_MSG;
-	OutBound[1]->data[0] = SYNC_MSG;
+	OutBound[0]->buf[0] = SYNC_MSG;
+	OutBound[1]->buf[0] = SYNC_MSG;
 	/* Type field, frame sequence, current random seed */
-	OutBound[0]->len = PDATA_OFFSET;
-	OutBound[1]->len = PDATA_OFFSET;
+	OutBound[0]->buflen = PDATA_OFFSET;
+	OutBound[1]->buflen = PDATA_OFFSET;
 	CurrOut = 0;
 
 	ThisSyncs[0] = 0;
@@ -134,8 +164,9 @@ int AddPlayer(const char *player)
 	}
 	if ( host ) {
 		/* Resolve the remote address */
-		SDLNet_ResolveHost(&PlayAddr[playernum], host, portnum);
-		if ( PlayAddr[playernum].host == INADDR_NONE ) {
+		PlayAddr[playernum] = SDLNet_ResolveHostname(host);
+		PlayPort[playernum] = SDL_Swap16BE(portnum);
+		if (SDLNet_WaitUntilResolved(PlayAddr[playernum], -1) < 0) {
 			error("Couldn't resolve host name for %s\r\n", host);
 			SDL_free(playerstr);
 			return(-1);
@@ -150,7 +181,13 @@ int AddPlayer(const char *player)
 		} else {
 			gOurPlayer = playernum;
 			FoundUs = 1;
-			SDLNet_ResolveHost(&PlayAddr[playernum], NULL, portnum);
+			PlayAddr[playernum] = SDLNet_ResolveHostname("localhost");
+			PlayPort[playernum] = SDL_Swap16BE(portnum);
+			if (SDLNet_WaitUntilResolved(PlayAddr[playernum], -1) < 0) {
+				error("Couldn't resolve host name for localhost\r\n");
+				SDL_free(playerstr);
+				return(-1);
+			}
 		}
 	}
 
@@ -191,8 +228,8 @@ int SetServer(const char *server)
 	} else {
 		portnum = NETPLAY_PORT-1;
 	}
-	SDLNet_ResolveHost(&ServAddr, host, portnum);
-	if ( ServAddr.host == INADDR_NONE ) {
+	ServAddr = SDLNet_ResolveHostname(host);
+	if (SDLNet_WaitUntilResolved(ServAddr, -1) < 0) {
 		error("Couldn't resolve host name for %s\r\n", host);
 		SDL_free(serverstr);
 		return(-1);
@@ -245,19 +282,15 @@ int CheckPlayers(void)
 	}
 
 	/* Oh heck, create the UDP socket here... */
-	port = SDL_SwapBE16(PlayAddr[gOurPlayer].port);
-	gNetFD = SDLNet_UDP_Open(port);
+	port = SDL_Swap16BE(PlayPort[gOurPlayer]);
+	gNetFD = SDLNet_CreateDatagramSocket(NULL, port);
 	if ( gNetFD == NULL ) {
 		error("Couldn't create bound network socket");
 		return(-1);
 	}
-	SocketSet = SDLNet_AllocSocketSet(1);
-	if ( SocketSet == NULL ) {
-		error("Couldn't create socket watch set");
-		return(-1);
-	}
-	SDLNet_UDP_AddSocket(SocketSet, gNetFD);
+	SocketSet[0] = gNetFD;
 
+#if 0
 	/* Now, so we can send to ourselves... */
 	PlayAddr[gOurPlayer] = *SDLNet_UDP_GetPeerAddress(gNetFD, -1);
 	if ( ! PlayAddr[gOurPlayer].host ) {
@@ -271,6 +304,7 @@ int CheckPlayers(void)
 			SDLNet_UDP_Bind(gNetFD, i+1, &PlayAddr[i]);
 		}
 	}
+#endif
 	return(0);
 }
 
@@ -297,7 +331,10 @@ void QueueKey(unsigned char Op, unsigned char Type)
 	
 int SyncNetwork(void)
 {
-	UDPpacket sent;
+#if 1
+	return 0;
+#else
+	SDLNet_Datagram *sent;
 	Uint32 seed, frame;
 	unsigned char buf[BUFSIZ];
 	int index, nleft;
@@ -312,17 +349,13 @@ int SyncNetwork(void)
 	SDLNet_Write32(seed, &OutBuf[1+sizeof(frame)]);
 
 	/* Send the packet to all the players */
-	SDLNet_UDP_Send(gNetFD, 0, OutBound[CurrOut]);
 	for ( nleft=0, index=0; index<gNumPlayers; ++index ) {
+		SDLNet_SendDatagram(gNetFD, PlayAddr[index], PlayPort[index], OutBound[CurrOut]->buf, OutBound[CurrOut]->buflen);
 		if ( SyncPtr[index] == NULL ) {
 			++nleft;
 		}
 	}
 	NextSync = 0;
-
-	/* Get the inbound packet ready for data */
-	sent.data = buf;
-	sent.maxlen = sizeof(buf);
 
 	/* Wait for Ack's */
 	while ( nleft ) {
@@ -332,7 +365,7 @@ error("Timed out waiting for frame %ld\r\n", NextFrame);
 			/* Timeout, resend the sync packet */
 			for ( index=0; index<gNumPlayers; ++index ) {
 				if ( SyncPtr[index] == NULL ) {
-					SDLNet_UDP_Send(gNetFD, index+1, OutBound[CurrOut]);
+					SDLNet_SendDatagram(gNetFD, PlayAddr[index+1], PlayPort[index+1], OutBound[CurrOut]->buf, OutBound[CurrOut]->buflen);
 				}
 			}
 		}
@@ -352,7 +385,7 @@ error("Timed out waiting for frame %ld\r\n", NextFrame);
 			/* Send it back if we are not the server.. */
 			if ( gOurPlayer != 0 ) {
 				buf[1] = gOurPlayer;
-				SDLNet_UDP_Send(gNetFD, -1, &sent);
+				SDLNet_UDP_Send(gNetFD, , &sent);
 			}
 //error("NEW_GAME packet!\r\n");
 			continue;
@@ -425,6 +458,7 @@ SDL_Delay(3000);
 	OutLen = PDATA_OFFSET;
 
 	return(0);
+#endif
 }
 
 /* This function retrieves a particular player's network buffer */
@@ -451,7 +485,8 @@ if ( retlen > 0 ) {
 
 inline void SuckPackets(void)
 {
-	UDPpacket sent;
+#if 0 // FIXME
+	SDLNet_Datagram sent;
 	unsigned char buf[BUFSIZ];
 
 	sent.data = buf;
@@ -459,6 +494,7 @@ inline void SuckPackets(void)
 	while ( SDLNet_UDP_Recv(gNetFD, &sent) ) {
 		/* Keep sucking */ ;
 	}
+#endif
 }
 	
 
@@ -503,6 +539,7 @@ static void ErrorMessage(const char *message)
 */
 static int AlertServer(int *Wave, int *Lives, int *Turbo)
 {
+#if 0 // FIXME
 	TCPsocket sock;
 	SDLNet_SocketSet socketset;
 	Uint8 netbuf[BUFSIZ], sendbuf[NEW_PACKETLEN+4+1];
@@ -530,7 +567,7 @@ static int AlertServer(int *Wave, int *Lives, int *Turbo)
 
 	MakeNewPacket(*Wave, *Lives, *Turbo, sendbuf);
 	len = NEW_PACKETLEN;
-	SDLNet_Write32(SDL_SwapBE16(PlayAddr[gOurPlayer].port), sendbuf+len);
+	SDLNet_Write32(SDL_Swap16BE(PlayAddr[gOurPlayer].port), sendbuf+len);
 	len += 4;
 	sendbuf[len] = (Uint8)gNumPlayers;
 	len += 1;
@@ -640,6 +677,7 @@ done:
 		ErrorMessage(message);
 	}
 	return(status);
+#endif // 0
 }
 
 /* This function sends a NEWGAME packet, and waits for all other players
@@ -650,12 +688,15 @@ done:
 */
 int Send_NewGame(int *Wave, int *Lives, int *Turbo)
 {
+#if 1 // FIXME
+	return 0;
+#else
 	Uint8 netbuf[BUFSIZ], sendbuf[NEW_PACKETLEN];
 	char message[BUFSIZ];
 	int  nleft, n;
 	int  acked[MAX_PLAYERS];
 	int  i;
-	UDPpacket newgame, sent;
+	SDLNet_Datagram newgame, sent;
 
 	/* Don't do the usual rigamarole if we have a game server */
 	if ( UseServer )
@@ -749,13 +790,17 @@ int Send_NewGame(int *Wave, int *Lives, int *Turbo)
 	}
 	NextFrame = 0L;
 	return(0);
+#endif
 }
 
 int Await_NewGame(int *Wave, int *Lives, int *Turbo)
 {
+#if 1 // FIXME
+	return 0;
+#else
 	unsigned char netbuf[BUFSIZ];
 	int len, gameon;
-	UDPpacket sent;
+	SDLNet_Datagram sent;
 	Uint32 lives, seed;
 
 	/* Don't do the usual rigamarole if we have a game server */
@@ -825,4 +870,5 @@ int Await_NewGame(int *Wave, int *Lives, int *Turbo)
 		gameon = 1;
 	}
 	return(0);
+#endif
 }

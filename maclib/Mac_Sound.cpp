@@ -22,80 +22,30 @@
 #include "Mac_Sound.h"
 #include "Mac_Compat.h"
 
-static int bogus_running = 0;
-
-extern "C" {
-static int BogusAudioThread(void *data)
+static void SDLCALL FillAudio(void* userdata, SDL_AudioStream* stream, int additional_amount, int total_amount)
 {
-	SDL_AudioSpec *spec;
-	void (*fill)(void *userdata, Uint8 *stream, int len);
-	Uint32 then;
-	Uint32 playticks;
-	Sint32 ticksleft;
-	Uint8 *stream;
+	Sound *sound = (Sound *)userdata;
 
-#ifdef NSIG
-	/* Clear out any signal handlers */
-	for ( int i = 0; i<NSIG; ++i )
-		signal(i, SIG_DFL);
-#else
-	signal(SIGINT, SIG_DFL);
-	signal(SIGSEGV, SIG_DFL);
-	signal(SIGTERM, SIG_DFL);
-#endif
-
-	/* Get ready to roll.. */
-	spec = (SDL_AudioSpec *)data;
-	if ( spec->callback == NULL ) {
-		for ( ; ; )
-			Delay(60*60*60);	/* Delay 1 hour */
+	if (additional_amount > 0) {
+		Uint8* data = SDL_stack_alloc(Uint8, additional_amount);
+		if (data) {
+			Sound::FillAudioU8(sound, data, additional_amount);
+			SDL_PutAudioStreamData(stream, data, additional_amount);
+			SDL_stack_free(data);
+		}
 	}
-	fill = spec->callback;
-	playticks = ((Uint32)spec->samples*1000)/spec->freq;
-	/* Fill in the spec */
-	spec->size = (spec->format&0xFF)/8;
-	spec->size *= spec->channels;
-	spec->size *= spec->samples;
-	stream = new Uint8[spec->size];
-
-	while ( bogus_running ) {
-		then = SDL_GetTicks();
-
-		/* Fill buffer */
-		if ( fill )
-			(*fill)(spec->userdata, stream, spec->size);
-
-		/* Calculate time left, and sleep */
-		ticksleft = playticks-(SDL_GetTicks()-then);
-		if ( ticksleft > 0 )
-			SDL_Delay(ticksleft);
-	}
-	delete[] stream;
-
-	return(0);
 }
-
-static void FillAudio(void *udata, Uint8 *stream, int len)
-{
-	Sound *sound = (Sound *)udata;
-	
-	Sound::FillAudioU8(sound, stream, len);
-}
-/* extern "C" */
-};
 
 Sound:: Sound(const char *soundfile, Uint8 vol)
 {
 	Wave         *wave;
 	Mac_Resource *soundres;
-	int           i, p;
+	int           i;
 	Uint16       *ids;
 	Mac_ResData  *snd;
 
 	/* Initialize variables */
 	volume  = 0;
-	playing = 0;
-	bogus_audio = NULL;
 	InitHash();
 	errstr = NULL;
 
@@ -129,6 +79,8 @@ Sound:: Sound(const char *soundfile, Uint8 vol)
 	}
 	delete soundres;
 	spec = wave->Spec();
+
+#if 0
 	/* Allow ~ 1/30 second time-lag in audio buffer -- samples is x^2  */
 	spec->samples = (wave->Frequency()*wave->SampleSize())/30;
 	for ( p = 0; spec->samples > 1; ++p )
@@ -136,69 +88,29 @@ Sound:: Sound(const char *soundfile, Uint8 vol)
 	++p;
 	for ( i = 0; i < p; ++i )
 		spec->samples *= 2;
-	spec->callback = FillAudio;
-	spec->userdata = (void *)this;
+#endif
+
+	stream = SDL_OpenAudioDeviceStream(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, spec, FillAudio, this);
 
 	/* Empty the channels and start the music :-) */
 	HaltSound();
-	if ( vol == 0 ) {
-		bogus_running = 1;
-		bogus_audio = SDL_CreateThread(BogusAudioThread, "Maelstrom Audio", spec);
-	} else {
-		Volume(vol);
-	}
+	Volume(vol);
+	SDL_ResumeAudioStreamDevice(stream);
 }
 
 Sound:: ~Sound()
 {
-	if ( playing )
-		SDL_CloseAudio();
-	else
-	if ( bogus_audio ) {
-		bogus_running = 0;
-		SDL_WaitThread(bogus_audio, NULL);
-		bogus_audio = NULL;
-	}
+	SDL_DestroyAudioStream(stream);
 	FreeHash();
 }
 
 Uint8
 Sound:: Volume(Uint8 vol)
 {
-	Uint8 active;
-
-	active = playing;
-	if ( (volume == 0) && (vol > 0) ) {
-		/* Kill bogus sound thread */
-		if ( bogus_audio ) {
-			bogus_running = 0;
-			SDL_WaitThread(bogus_audio, NULL);
-			bogus_audio = NULL;
-		}
-
-		/* Try to open the audio */
-		if ( SDL_OpenAudio(spec, NULL) < 0 )
-			vol = 0;		/* Fake sound */
-		active = 1;
-		SDL_PauseAudio(0);		/* Go! */
-	}
 	if ( vol > MAX_VOLUME )
 		vol = MAX_VOLUME;
 	volume = vol;
 
-	if ( active && (volume == 0) ) {
-		if ( playing )
-			SDL_CloseAudio();
-		active = 0;
-
-		/* Run bogus sound thread */
-		bogus_running = 1;
-		bogus_audio = SDL_CreateThread(BogusAudioThread, "Maelstrom Audio", spec);
-		if ( bogus_audio == NULL ) {
-			/* Oh well... :-) */
-		}
-	}
-	playing = active;
 	return(volume);
 }
 

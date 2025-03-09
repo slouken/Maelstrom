@@ -9,7 +9,7 @@
 #endif
 #include <stdio.h>
 
-#include "SDL_endian.h"
+#include <SDL3/SDL.h>
 
 #include "Maelstrom_Globals.h"
 #include "load.h"
@@ -30,7 +30,7 @@ Scores hScores[NUM_SCORES];
 void LoadScores(void)
 {
 	SavePath path;
-	SDL_RWops *scores_src;
+	SDL_IOStream *scores_src;
 	int i;
 
 	/* Try to load network scores, if we can */
@@ -44,22 +44,22 @@ void LoadScores(void)
 	}
 	memset(&hScores, 0, sizeof(hScores));
 
-	scores_src = SDL_RWFromFile(path.Path(MAELSTROM_SCORES), "rb");
+	scores_src = SDL_IOFromFile(path.Path(MAELSTROM_SCORES), "rb");
 	if ( scores_src != NULL ) {
 		for ( i=0; i<NUM_SCORES; ++i ) {
-			SDL_RWread(scores_src, hScores[i].name,
-			           sizeof(hScores[i].name), 1);
-			hScores[i].wave = SDL_ReadBE32(scores_src);
-			hScores[i].score = SDL_ReadBE32(scores_src);
+			SDL_ReadIO(scores_src, hScores[i].name,
+			           sizeof(hScores[i].name));
+			SDL_ReadU32BE(scores_src, &hScores[i].wave);
+			SDL_ReadU32BE(scores_src, &hScores[i].score);
 		}
-		SDL_RWclose(scores_src);
+		SDL_CloseIO(scores_src);
 	}
 }
 
 void SaveScores(void)
 {
 	SavePath path;
-	SDL_RWops *scores_src;
+	SDL_IOStream *scores_src;
 	int i;
 #ifdef unix
 	int omask;
@@ -72,15 +72,15 @@ void SaveScores(void)
 #ifdef unix
 	omask=umask(SCORES_PERMMASK);
 #endif
-	scores_src = SDL_RWFromFile(path.Path(MAELSTROM_SCORES), "wb");
+	scores_src = SDL_IOFromFile(path.Path(MAELSTROM_SCORES), "wb");
 	if ( scores_src != NULL ) {
 		for ( i=0; i<NUM_SCORES; ++i ) {
-			SDL_RWwrite(scores_src, hScores[i].name,
-			            sizeof(hScores[i].name), 1);
-			SDL_WriteBE32(scores_src, hScores[i].wave);
-			SDL_WriteBE32(scores_src, hScores[i].score);
+			SDL_WriteIO(scores_src, hScores[i].name,
+			            sizeof(hScores[i].name));
+			SDL_WriteU32BE(scores_src, hScores[i].wave);
+			SDL_WriteU32BE(scores_src, hScores[i].score);
 		}
-		SDL_RWclose(scores_src);
+		SDL_CloseIO(scores_src);
 	} else {
 		error("Warning: Couldn't save scores to %s\n",
 						path.Path(MAELSTROM_SCORES));

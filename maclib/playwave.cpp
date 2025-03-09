@@ -25,10 +25,10 @@
 
 #include "SDL.h"
 #include "SDL_audio.h"
-#include "SDL_mutex.h"
+#include "SDL_Mutex.h"
 #include "Mac_Wave.h"
 
-static SDL_mutex *done;
+static SDL_Mutex *done;
 static Wave *wave;
 static Uint8 silence;
 
@@ -123,7 +123,7 @@ int main(int argc, char *argv[])
 			exit(1);
 	}
 	spec = wave->Spec();
-	silence = ((spec->format&AUDIO_U8) ? 0x80 : 0x00);
+	silence = ((spec->format&SDL_AUDIO_U8) ? 0x80 : 0x00);
 	spec->callback = fillerup;
 
 #ifdef SAVE_THE_WAVES

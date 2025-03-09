@@ -327,7 +327,7 @@ FontServ:: TextImage(const char *text, MFont *font, Uint8 style,
 	height = (font->header)->fRectHeight;
 
 	/* Allocate the text bitmap image */
-	image = SDL_CreateRGBSurface(SDL_SWSURFACE, width, height, 1, 0,0,0,0);
+	image = SDL_CreateSurface(width, height, SDL_PIXELFORMAT_INDEX1MSB);
 	if ( image == NULL ) {
 		SetError("Unable to allocate bitmap: %s", SDL_GetError());
 		return(NULL);
@@ -382,9 +382,10 @@ FontServ:: TextImage(const char *text, MFont *font, Uint8 style,
 	}
 
 	/* Map the image and return */
-	SDL_SetColorKey(image, SDL_TRUE, 0);
-	image->format->palette->colors[0] = background;
-	image->format->palette->colors[1] = foreground;
+	SDL_SetSurfaceColorKey(image, true, 0);
+	SDL_Palette* palette = SDL_GetSurfacePalette(image);
+	SDL_SetPaletteColors(palette, &background, 0, 1);
+	SDL_SetPaletteColors(palette, &foreground, 1, 1);
 	++text_allocated;
 	return(image);
 }
@@ -392,7 +393,7 @@ void
 FontServ:: FreeText(SDL_Surface *text)
 {
 	--text_allocated;
-	SDL_FreeSurface(text);
+	SDL_DestroySurface(text);
 }
 int
 FontServ:: InvertText(SDL_Surface *text)
@@ -400,14 +401,15 @@ FontServ:: InvertText(SDL_Surface *text)
 	SDL_Color colors[2];
 
 	/* Only works on bitmap images */
-	if ( text->format->BitsPerPixel != 1 ) {
+	if ( SDL_BITSPERPIXEL(text->format) != 1 ) {
 		SetError("Not a text bitmap");
 		return(-1);
 	}
 
 	/* Swap background and foreground colors */
-	colors[0] = text->format->palette->colors[1];
-	colors[1] = text->format->palette->colors[0];
-	SDL_SetPaletteColors(text->format->palette, colors, 0, 2);
+	SDL_Palette* palette = SDL_GetSurfacePalette(text);
+	colors[0] = palette->colors[1];
+	colors[1] = palette->colors[0];
+	SDL_SetPaletteColors(palette, colors, 0, 2);
 	return(0);
 }

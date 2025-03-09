@@ -20,13 +20,13 @@
 #ifndef _Mac_Compat_h
 #define _Mac_Compat_h
 
-#include "SDL_timer.h"
+#include <SDL3/SDL.h>
 
 /* Some simple inline Macintosh compatibility routines */
 
 /* Delay(x) -- sleep for x number of 1/60 second slices */
 #define Delay(x)	SDL_Delay(((x)*1000)/60)
 /* Ticks -- a global variable containing current time in 1/60 second slices */
-#define Ticks		((SDL_GetTicks()*60)/1000)
+#define Ticks		((((Uint32)SDL_GetTicks())*60)/1000)
 
 #endif /* _Mac_Compat_h */

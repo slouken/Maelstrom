@@ -21,8 +21,5 @@
 #define _pixel_h
 
 extern void PutPixel1(Uint8 *screen_loc, SDL_Surface *screen, Uint32 pixel);
-extern void PutPixel2(Uint8 *screen_loc, SDL_Surface *screen, Uint32 pixel);
-extern void PutPixel3(Uint8 *screen_loc, SDL_Surface *screen, Uint32 pixel);
-extern void PutPixel4(Uint8 *screen_loc, SDL_Surface *screen, Uint32 pixel);
 
 #endif /* _pixel_h */

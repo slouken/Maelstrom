@@ -23,20 +23,3 @@
 void PutPixel1(Uint8 *screen_loc, SDL_Surface *screen, Uint32 pixel) {
 	*((Uint8 *)screen_loc) = pixel;
 }
-void PutPixel2(Uint8 *screen_loc, SDL_Surface *screen, Uint32 pixel) {
-	*((Uint16 *)screen_loc) = pixel;
-}
-void PutPixel3(Uint8 *screen_loc, SDL_Surface *screen, Uint32 pixel) {
-	int shift;
-
-	/* Gack - slow, but endian correct */
-	shift = screen->format->Rshift;
-	*(screen_loc+shift/8) = pixel>>shift;
-	shift = screen->format->Gshift;
-	*(screen_loc+shift/8) = pixel>>shift;
-	shift = screen->format->Bshift;
-	*(screen_loc+shift/8) = pixel>>shift;
-}
-void PutPixel4(Uint8 *screen_loc, SDL_Surface *screen, Uint32 pixel) {
-	*((Uint32 *)screen_loc) = pixel;
-}

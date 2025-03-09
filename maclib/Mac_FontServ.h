@@ -103,12 +103,13 @@ public:
 				SDL_Color background, SDL_Color foreground);
 	SDL_Surface *TextImage(const char *text, MFont *font, Uint8 style,
 						Uint8 R, Uint8 G, Uint8 B) {
-		SDL_Color background = { 0xFF, 0xFF, 0xFF, 0 };
+		SDL_Color background = { 0xFF, 0xFF, 0xFF, SDL_ALPHA_OPAQUE };
 		SDL_Color foreground;
 
 		foreground.r = R;
 		foreground.g = G;
 		foreground.b = B;
+		foreground.a = SDL_ALPHA_OPAQUE;
 		return(TextImage(text, font, style, foreground, background));
 	}
 	void FreeText(SDL_Surface *text);

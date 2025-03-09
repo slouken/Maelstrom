@@ -21,7 +21,7 @@
 
 #include <stdio.h>
 #include <stdarg.h>
-#include "SDL_audio.h"
+#include <SDL3/SDL.h>
 #include "Mac_Resource.h"
 
 class Wave {

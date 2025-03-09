@@ -21,8 +21,7 @@
 
 #include <stdlib.h>
 #include <string.h>
-#include "SDL_endian.h"
-#include "SDL_rwops.h"
+#include <SDL3/SDL.h>
 #include "Mac_Wave.h"
 
 #if SDL_BYTEORDER == SDL_BIG_ENDIAN
@@ -115,7 +114,7 @@ Wave:: Load(const char *wavefile, Uint16 desired_rate)
 	/* Copy malloc()'d data to new'd data */
 	sound_data = new Uint8[sound_datalen];
 	memcpy(sound_data, samples, sound_datalen);
-	SDL_FreeWAV(samples);
+	SDL_free(samples);
 
 	/* Set the desired sample frequency */
 	Frequency(desired_rate);
@@ -290,11 +289,8 @@ Wave:: Load(Mac_ResData *snd, Uint16 desired_rate)
 
 		/* Fill in the audio spec */
 		spec.freq = sample_rate;
-		spec.format = AUDIO_U8;		/* The only format? */
+		spec.format = SDL_AUDIO_U8;		/* The only format? */
 		spec.channels = snd_channels;
-		spec.samples = 4096;
-		spec.callback = NULL;
-		spec.userdata = NULL;
 
 		/* Save the audio data */
 		sound_datalen = num_samples*snd_channels;
@@ -507,7 +503,7 @@ int
 Wave:: Save(const char *wavefile)
 {
 	/* Normally, these chunks come consecutively in a WAVE file */
-	SDL_RWops *dst;
+	SDL_IOStream *dst;
 	Uint32 wavelen;
 	struct WaveFMT {
 		Uint32	FMTchunk;
@@ -521,7 +517,7 @@ Wave:: Save(const char *wavefile)
 	} format;
 
 	/* Open the WAV file for writing */
-	dst = SDL_RWFromFile(wavefile, "wb");
+	dst = SDL_IOFromFile(wavefile, "wb");
 	if ( dst == NULL ) {
 		error("Couldn't open %s for writing", wavefile);
 		return(-1);
@@ -538,28 +534,28 @@ Wave:: Save(const char *wavefile)
 	format.bitspersample = (spec.format&0xFF);
 
 	/* Swap the WAVE format information to little-endian format */
-	format.fmtlen		= SDL_SwapLE32(format.fmtlen);
-	format.encoding		= SDL_SwapLE16(format.encoding);
-	format.channels		= SDL_SwapLE16(format.channels);
-	format.frequency	= SDL_SwapLE32(format.frequency);
-	format.byterate		= SDL_SwapLE32(format.byterate);
-	format.samplesize	= SDL_SwapLE16(format.samplesize);
-	format.bitspersample	= SDL_SwapLE16(format.bitspersample);
+	format.fmtlen		= SDL_Swap32LE(format.fmtlen);
+	format.encoding		= SDL_Swap16LE(format.encoding);
+	format.channels		= SDL_Swap16LE(format.channels);
+	format.frequency	= SDL_Swap32LE(format.frequency);
+	format.byterate		= SDL_Swap32LE(format.byterate);
+	format.samplesize	= SDL_Swap16LE(format.samplesize);
+	format.bitspersample	= SDL_Swap16LE(format.bitspersample);
 
 	/* Figure out how big the RIFF chunk will be */
 	wavelen = sizeof(Uint32)+sizeof(format)+2*sizeof(Uint32)+sound_datalen;
 
 	/* Save the WAVE */
-	if ( ! SDL_RWwrite(dst, "RIFF", sizeof(Uint32), 1) ||
-	     ! SDL_WriteLE32(dst, wavelen) ||
-	     ! SDL_RWwrite(dst, "WAVE", sizeof(Uint32), 1) ||
-	     ! SDL_RWwrite(dst, &format, sizeof(format), 1) ||
-	     ! SDL_RWwrite(dst, "data", sizeof(Uint32), 1) ||
-	     ! SDL_WriteLE32(dst, sound_datalen) ||
-	     ! SDL_RWwrite(dst, sound_data, sound_datalen, 1) ||
-	     					(SDL_RWclose(dst) != 0) ) {
+	if ( ! SDL_WriteIO(dst, "RIFF", sizeof(Uint32)) ||
+	     ! SDL_WriteU32LE(dst, wavelen) ||
+	     ! SDL_WriteIO(dst, "WAVE", sizeof(Uint32)) ||
+	     ! SDL_WriteIO(dst, &format, sizeof(format)) ||
+	     ! SDL_WriteIO(dst, "data", sizeof(Uint32)) ||
+	     ! SDL_WriteU32LE(dst, sound_datalen) ||
+	     ! SDL_WriteIO(dst, sound_data, sound_datalen) ||
+	     					(SDL_CloseIO(dst) != 0) ) {
 		error("Couldn't write to %s", wavefile);
-		SDL_RWclose(dst);
+		SDL_CloseIO(dst);
 		return(-1);
 	}
 	return(0);

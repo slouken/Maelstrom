@@ -803,13 +803,13 @@ static void DoGameOver(void)
 		chars_in_handle = 0;
 
 		while ( screen->PollEvent(&event) ) /* Loop, flushing events */;
-		SDL_StartTextInput();
+		screen->StartTextInput();
 		while ( !done ) {
 			screen->WaitEvent(&event);
 
 			/* -- Handle key down's (no UNICODE support) */
-			if ( event.type == SDL_KEYDOWN ) {
-				switch ( event.key.keysym.sym ) {
+			if ( event.type == SDL_EVENT_KEY_DOWN ) {
+				switch ( event.key.key ) {
 				case SDLK_RETURN:
 					done = true;
 					break;
@@ -822,7 +822,7 @@ static void DoGameOver(void)
 				default:
 					break;
 				}
-			} else if ( event.type == SDL_TEXTINPUT ) {
+			} else if ( event.type == SDL_EVENT_TEXT_INPUT ) {
 				size_t len = SDL_strlen( event.text.text );
 				if ( chars_in_handle + len < 15 ) {
 					sound->PlaySound(gShotSound, 5);
@@ -841,7 +841,7 @@ static void DoGameOver(void)
 			}
 		}
 		delete newyork;
-		SDL_StopTextInput();
+		screen->StopTextInput();
 
 		/* In case the user just pressed <Return> */
 		handle[chars_in_handle] = '\0';

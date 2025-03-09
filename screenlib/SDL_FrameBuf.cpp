@@ -57,7 +57,7 @@ FrameBuf:: FrameBuf()
 	dirtymap = NULL;
 	updatelist = NULL;
 	errstr = NULL;
-	faded = 0;
+	faded = false;
 	images.next = NULL;
 	itail = &images;
 }
@@ -80,7 +80,7 @@ int
 FrameBuf:: Init(int width, int height, Uint32 video_flags,
 					SDL_Color *colors, SDL_Surface *icon)
 {
-	window = SDL_CreateWindow( "", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, width, height, video_flags);
+	window = SDL_CreateWindow( "", width, height, video_flags);
 	if ( window == NULL )
 	{
 		SetError("Couldn't create window: %s", SDL_GetError());
@@ -92,22 +92,23 @@ FrameBuf:: Init(int width, int height, Uint32 video_flags,
 		SDL_SetWindowIcon(window, icon);
 	}
 
-	renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_PRESENTVSYNC);
+	renderer = SDL_CreateRenderer(window, NULL);
 	if ( renderer == NULL ) {
 		SetError("Couldn't create renderer: %s", SDL_GetError());
 		return(-1);
 	}
+	SDL_SetRenderVSync(renderer, 1);
 
 	texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, width, height);
 	if ( texture == NULL ) {
 		SetError("Couldn't create texture: %s", SDL_GetError());
 		return(-1);
 	}
-	SDL_SetTextureScaleMode(texture, SDL_ScaleModeLinear);
+	SDL_SetTextureScaleMode(texture, SDL_SCALEMODE_LINEAR);
 
-	SDL_RenderSetLogicalSize(renderer, width, height);
+	SDL_SetRenderLogicalPresentation(renderer, width, height, SDL_LOGICAL_PRESENTATION_LETTERBOX);
 
-	screenfg = SDL_CreateRGBSurface(0, width, height, 8, 0, 0, 0, 0);
+	screenfg = SDL_CreateSurface(width, height, SDL_PIXELFORMAT_INDEX8);
 	if ( screenfg == NULL ) {
 		SetError("Couldn't create foreground: %s", SDL_GetError());
 		return(-1);
@@ -116,11 +117,7 @@ FrameBuf:: Init(int width, int height, Uint32 video_flags,
 	PrintSurface("Created foreground", screenfg);
 
 	/* Create the background */
-	screenbg = SDL_CreateRGBSurface(screen->flags, screen->w, screen->h,
-					screen->format->BitsPerPixel,
-					screen->format->Rmask,
-					screen->format->Gmask,
-					screen->format->Bmask, 0);
+	screenbg = SDL_CreateSurface(width, height, SDL_PIXELFORMAT_INDEX8);
 	if ( screenbg == NULL ) {
 		SetError("Couldn't create background: %s", SDL_GetError());
 		return(-1);
@@ -128,7 +125,7 @@ FrameBuf:: Init(int width, int height, Uint32 video_flags,
 	PrintSurface("Created background", screenbg);
 
 	/* Create the staging surface */
-	staging = SDL_CreateRGBSurfaceWithFormatFrom(NULL, width, height, 32, 0, SDL_PIXELFORMAT_ARGB8888);
+	staging = SDL_CreateSurfaceFrom(width, height, SDL_PIXELFORMAT_ARGB8888, NULL, 0);
 	if ( staging == NULL ) {
 		SetError("Couldn't create staging surface: %s", SDL_GetError());
 		return(-1);
@@ -137,7 +134,7 @@ FrameBuf:: Init(int width, int height, Uint32 video_flags,
 
 	/* Create the palette */
 	if ( colors ) {
-		palette = SDL_AllocPalette(256);
+		palette = SDL_CreatePalette(256);
 		if ( palette == NULL ) {
 			SetError("Couldn't create palette: %s", SDL_GetError());
 			return(-1);
@@ -175,20 +172,8 @@ FrameBuf:: Init(int width, int height, Uint32 video_flags,
 	}
 
 	/* Figure out what putpixel routine to use */
-	switch (screen->format->BytesPerPixel) {
-		case 1:
-			PutPixel = PutPixel1;
-			break;
-		case 2:
-			PutPixel = PutPixel2;
-			break;
-		case 3:
-			PutPixel = PutPixel3;
-			break;
-		case 4:
-			PutPixel = PutPixel4;
-			break;
-	}
+	SDL_assert(SDL_BYTESPERPIXEL(screen->format) == 1);
+	PutPixel = PutPixel1;
 	return(0);
 }
 
@@ -199,17 +184,17 @@ FrameBuf:: ~FrameBuf()
 	for ( ielem = images.next; ielem; ) {
 		iold = ielem;
 		ielem = ielem->next;
-		SDL_FreeSurface(iold->image);
+		SDL_DestroySurface(iold->image);
 		delete iold;
 	}
 	if ( palette )
-		SDL_FreePalette(palette);
+		SDL_DestroyPalette(palette);
 	if ( screenfg )
-		SDL_FreeSurface(screenfg);
+		SDL_DestroySurface(screenfg);
 	if ( screenbg )
-		SDL_FreeSurface(screenbg);
+		SDL_DestroySurface(screenbg);
 	if ( staging )
-		SDL_FreeSurface(staging);
+		SDL_DestroySurface(staging);
 	if ( blitQ )
 		delete[] blitQ;
 	if ( dirtymap )
@@ -234,7 +219,7 @@ FrameBuf:: SetPalette(SDL_Color *colors)
 		Uint8 r = palette->colors[i].r;
 		Uint8 g = palette->colors[i].g;
 		Uint8 b = palette->colors[i].b;
-		colormap[i] = SDL_MapRGB(staging->format, r, g, b);
+		colormap[i] = SDL_MapSurfaceRGB(staging, r, g, b);
 	}
 
 	SetBackground(BGrgb[0], BGrgb[1], BGrgb[2]);
@@ -245,7 +230,7 @@ FrameBuf:: SetBackground(Uint8 R, Uint8 G, Uint8 B)
 	BGrgb[0] = R;
 	BGrgb[1] = G;
 	BGrgb[2] = B;
-	BGcolor = SDL_MapRGB(screenfg->format, R, G, B);
+	BGcolor = SDL_MapSurfaceRGB(screenfg, R, G, B);
 	FocusBG();
 	Clear();
 	FocusFG();
@@ -253,7 +238,7 @@ FrameBuf:: SetBackground(Uint8 R, Uint8 G, Uint8 B)
 Uint32
 FrameBuf:: MapRGB(Uint8 R, Uint8 G, Uint8 B)
 {
-	return(SDL_MapRGB(screenfg->format, R, G, B));
+	return(SDL_MapSurfaceRGB(screenfg, R, G, B));
 }
 void
 FrameBuf:: ClipBlit(SDL_Rect *cliprect)
@@ -277,9 +262,9 @@ FrameBuf:: PerformBlits(void)
 	if ( blitQlen > 0 ) {
 		/* Blast and free the queued blits */
 		for ( int i=0; i<blitQlen; ++i ) {
-			SDL_LowerBlit(blitQ[i].src, &blitQ[i].srcrect,
+			SDL_BlitSurfaceUnchecked(blitQ[i].src, &blitQ[i].srcrect,
 						screen, &blitQ[i].dstrect);
-			SDL_FreeSurface(blitQ[i].src);
+			SDL_DestroySurface(blitQ[i].src);
 		}
 		blitQlen = 0;
 	}
@@ -293,7 +278,7 @@ FrameBuf:: Update(int auto_update)
 	PerformBlits();
 	if ( (screen == screenbg) && auto_update ) {
 		for ( i=0; i<updatelen; ++i ) {
-			SDL_LowerBlit(screenbg, &updatelist[i],
+			SDL_BlitSurfaceUnchecked(screenbg, &updatelist[i],
 			 		screenfg, &updatelist[i]);
 		}
 		UpdateScreen();
@@ -320,7 +305,7 @@ FrameBuf:: UpdateScreen(void)
 		SDL_UnlockTexture(texture);
 	}
 	SDL_RenderClear(renderer);
-	SDL_RenderCopy(renderer, texture, NULL, NULL);
+	SDL_RenderTexture(renderer, texture, NULL, NULL);
 	SDL_RenderPresent(renderer);
 }
 
@@ -335,7 +320,7 @@ FrameBuf:: Clear(Sint16 x, Sint16 y, Uint16 w, Uint16 h, clipval do_clip)
 		Uint8 screen_bpp;
 		Uint8 *screen_loc;
 
-		screen_bpp = screen->format->BytesPerPixel;
+		screen_bpp = SDL_BYTESPERPIXEL(screen->format);
 		screen_loc = screen_mem + y*screen->pitch + x*screen_bpp;
 		w *= screen_bpp;
 		while ( h-- ) {
@@ -361,7 +346,7 @@ FrameBuf:: DrawPoint(Sint16 x, Sint16 y, Uint32 color)
 	if ( y > screen->h ) return;
 
 	PerformBlits();
-	PutPixel(screen_mem+y*screen->pitch+x*screen->format->BytesPerPixel,
+	PutPixel(screen_mem+y*screen->pitch+x*SDL_BYTESPERPIXEL(screen->format),
 								screen, color);
 	dirty.x = x;
 	dirty.y = y;
@@ -385,7 +370,7 @@ FrameBuf:: DrawLine(Sint16 x1, Sint16 y1, Sint16 x2, Sint16 y2, Uint32 color)
 	ADJUSTX(x2); ADJUSTY(y2);
 	
 	PerformBlits();
-	screen_bpp = screen->format->BytesPerPixel;
+	screen_bpp = SDL_BYTESPERPIXEL(screen->format);
 	if ( y1 == y2 )  {  /* Horizontal line */
 		if ( x1 < x2 ) {
 			lo = x1;
@@ -477,7 +462,7 @@ FrameBuf:: DrawRect(Sint16 x, Sint16 y, Uint16 w, Uint16 h, Uint32 color)
 	if ( (y+h) > screen->h ) h = (Uint16)(screen->h-y);
 
 	PerformBlits();
-	screen_bpp = screen->format->BytesPerPixel;
+	screen_bpp = SDL_BYTESPERPIXEL(screen->format);
 
 	/* Horizontal lines */
 	screen_loc = screen_mem + y*screen->pitch + x*screen_bpp;
@@ -530,7 +515,7 @@ FrameBuf:: FillRect(Sint16 x, Sint16 y, Uint16 w, Uint16 h, Uint32 color)
 	dirty.h = h;
 
 	/* Semi-efficient, for now. :) */
-	screen_bpp = screen->format->BytesPerPixel;
+	screen_bpp = SDL_BYTESPERPIXEL(screen->format);
 	screen_loc = screen_mem + y*screen->pitch + x*screen_bpp;
 	skip = screen->pitch - (w*screen_bpp);
 	while ( h-- ) {
@@ -584,7 +569,7 @@ FrameBuf:: Fade(void)
 				Uint8 r = ramp[palette->colors[i].r];
 				Uint8 g = ramp[palette->colors[i].g];
 				Uint8 b = ramp[palette->colors[i].b];
-				colormap[i] = SDL_MapRGB(staging->format, r, g, b);
+				colormap[i] = SDL_MapSurfaceRGB(staging, r, g, b);
 			}
 			UpdateScreen();
 
@@ -616,35 +601,23 @@ FrameBuf:: GrabArea(Uint16 x, Uint16 y, Uint16 w, Uint16 h)
 	}
 
 	/* Allocate an area of the same pixel format */
-	area = SDL_CreateRGBSurface(SDL_SWSURFACE, w, h,
-				screen->format->BitsPerPixel, 
-					screen->format->Rmask,
-					screen->format->Gmask,
-					screen->format->Bmask, 0);
+	area = SDL_CreateSurface(w, h, screen->format);
 	if ( area ) {
 		Uint8 *area_mem;
 		Uint8 *scrn_mem;
-		int cursor_shown;
 
-		if ( area->format->palette ) {
-			memcpy(area->format->palette->colors,
-				screen->format->palette->colors,
-				screen->format->palette->ncolors
-						*sizeof(SDL_Color));
-		}
-		cursor_shown = SDL_ShowCursor(0);
+		SDL_SetSurfacePalette(area, SDL_GetSurfacePalette(screen));
 		Lock();
 		area_mem = (Uint8 *)area->pixels;
 		scrn_mem = screen_mem + y*screen->pitch +
-					x*screen->format->BytesPerPixel;
-		w *= screen->format->BytesPerPixel;
+					x*SDL_BYTESPERPIXEL(screen->format);
+		w *= SDL_BYTESPERPIXEL(screen->format);
 		while ( h-- ) {
 			memcpy(area_mem, scrn_mem, w);
 			area_mem += area->pitch;
 			scrn_mem += screen->pitch;
 		}
 		Unlock();
-		SDL_ShowCursor(cursor_shown);
 	}
 
 	/* Add the area to the list of images */
@@ -698,22 +671,14 @@ FrameBuf:: LoadImage(Uint16 w, Uint16 h, Uint8 *pixels, Uint8 *mask)
 	Uint8 *art_mem, *pix_mem;
 
 	/* Assume 8-bit artwork using the current palette */
-	artwork = SDL_CreateRGBSurface(SDL_SWSURFACE, w, h,
-				screenfg->format->BitsPerPixel, 
-					screenfg->format->Rmask,
-					screenfg->format->Gmask,
-					screenfg->format->Bmask, 0);
+	artwork = SDL_CreateSurface(w, h, screenfg->format);
 	if ( artwork == NULL ) {
 		SetError("Couldn't create artwork: %s", SDL_GetError());
 		return(NULL);
 	}
 
 	/* Set the palette and copy pixels, checking for colorkey */
-	if ( artwork->format->palette != NULL ) {
-		memcpy(artwork->format->palette->colors,
-		       screenfg->format->palette->colors,
-		       screenfg->format->palette->ncolors*sizeof(SDL_Color));
-	}
+	SDL_SetSurfacePalette(artwork, SDL_GetSurfacePalette(screenfg));
 	pad  = ((w%4) ? (4-(w%4)) : 0);
 	if ( mask ) {
 		int used[256];
@@ -745,12 +710,13 @@ FrameBuf:: LoadImage(Uint16 w, Uint16 h, Uint8 *pixels, Uint8 *mask)
 					PutPixel(art_mem, screenfg, colorkey);
 				}
 				m <<= 1;
-				art_mem += artwork->format->BytesPerPixel;
+				art_mem += SDL_BYTESPERPIXEL(artwork->format);
 				pix_mem += 1;
 			}
 			pix_mem += pad;
 		}
-		SDL_SetColorKey(artwork, SDL_RLEACCEL, colorkey);
+		SDL_SetSurfaceColorKey(artwork, true, colorkey);
+		SDL_SetSurfaceRLE(artwork, true);
 	} else {
 		/* Copy over the pixels */
 		pix_mem = pixels;
@@ -758,7 +724,7 @@ FrameBuf:: LoadImage(Uint16 w, Uint16 h, Uint8 *pixels, Uint8 *mask)
 			art_mem = (Uint8 *)artwork->pixels + i*artwork->pitch;
 			for ( j=0; j<w; ++j ) {
 				PutPixel(art_mem, screenfg, *pix_mem);
-				art_mem += artwork->format->BytesPerPixel;
+				art_mem += SDL_BYTESPERPIXEL(artwork->format);
 				pix_mem += 1;
 			}
 			pix_mem += pad;
@@ -784,7 +750,7 @@ FrameBuf:: FreeImage(SDL_Surface *image)
 				itail = ielem;
 			}
 			ielem->next = iold->next;
-			SDL_FreeSurface(iold->image);
+			SDL_DestroySurface(iold->image);
 			delete iold;
 			return;
 		} else {

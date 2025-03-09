@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "SDL_endian.h"
+#include <SDL3/SDL.h>
 
 #include "load.h"
 #include "myerror.h"
@@ -36,12 +36,13 @@ SDL_Surface *Load_Icon(char **xpm)
 	}
 
 	/* Allocate a surface of the appropriate type */
-	icon = SDL_CreateRGBSurface(SDL_SWSURFACE, width, height, 8, 0,0,0,0);
+	icon = SDL_CreateSurface(width, height, SDL_PIXELFORMAT_INDEX8);
 	if ( icon == NULL ) {
 		return(NULL);
 	}
 
 	/* Fill in the palette */
+	SDL_Palette* palette = SDL_GetSurfacePalette(icon);
 	for ( i=0; i<num_colors; ++i ) {
 		buf = xpm[index++];
 		p = *buf;
@@ -60,10 +61,11 @@ SDL_Surface *Load_Icon(char **xpm)
 			}
 			++buf;
 		}
-		icon->format->palette->colors[p].r = rgb[0];
-		icon->format->palette->colors[p].g = rgb[1];
-		icon->format->palette->colors[p].b = rgb[2];
+		palette->colors[p].r = rgb[0];
+		palette->colors[p].g = rgb[1];
+		palette->colors[p].b = rgb[2];
 	}
+	SDL_SetSurfacePalette(icon, palette);
 
 	/* Fill in the pixels */
 	buf = (char *)icon->pixels;
@@ -89,7 +91,7 @@ SDL_Surface *Load_Title(FrameBuf *screen, int title_id)
 
 	/* Create an image from the BMP */
 	title = screen->LoadImage(bmp->w, bmp->h, (Uint8 *)bmp->pixels, NULL);
-	SDL_FreeSurface(bmp);
+	SDL_DestroySurface(bmp);
 	return(title);
 }
 
@@ -98,36 +100,36 @@ SDL_Surface *GetCIcon(FrameBuf *screen, short cicn_id)
 	char file[256];
 	LibPath path;
 	SDL_Surface *cicn;
-	SDL_RWops *cicn_src;
+	SDL_IOStream *cicn_src;
 	Uint8 *pixels, *mask;
 	Uint16 w, h;
 	
 	/* Open the cicn sprite file.. */
 	SDL_snprintf(file, sizeof(file), "Images" DIR_SEP "Maelstrom_Icon#%hd.cicn", cicn_id);
-	if ( (cicn_src=SDL_RWFromFile(path.Path(file), "r")) == NULL ) {
+	if ( (cicn_src=SDL_IOFromFile(path.Path(file), "r")) == NULL ) {
 		error("GetCIcon(%hd): Can't open CICN %s: ",
 					cicn_id, path.Path(file));
 		return(NULL);
 	}
 
-	w = SDL_ReadBE16(cicn_src);
-	h = SDL_ReadBE16(cicn_src);
+	SDL_ReadU16BE(cicn_src, &w);
+	SDL_ReadU16BE(cicn_src, &h);
         pixels = new Uint8[w*h];
-        if ( SDL_RWread(cicn_src, pixels, 1, w*h) != (w*h) ) {
+        if ( SDL_ReadIO(cicn_src, pixels, w*h) != (w*h) ) {
 		error("GetCIcon(%hd): Corrupt CICN!\n", cicn_id);
 		delete[] pixels;
-		SDL_RWclose(cicn_src);
+		SDL_CloseIO(cicn_src);
 		return(NULL);
 	}
         mask = new Uint8[(w/8)*h];
-        if ( SDL_RWread(cicn_src, mask, 1, (w/8)*h) != ((w/8)*h) ) {
+        if ( SDL_ReadIO(cicn_src, mask, (w/8)*h) != ((w/8)*h) ) {
 		error("GetCIcon(%hd): Corrupt CICN!\n", cicn_id);
 		delete[] pixels;
 		delete[] mask;
-		SDL_RWclose(cicn_src);
+		SDL_CloseIO(cicn_src);
 		return(NULL);
 	}
-	SDL_RWclose(cicn_src);
+	SDL_CloseIO(cicn_src);
 
 	cicn = screen->LoadImage(w, h, pixels, mask);
 	delete[] pixels;
