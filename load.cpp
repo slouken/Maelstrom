@@ -42,7 +42,7 @@ SDL_Surface *Load_Icon(char **xpm)
 	}
 
 	/* Fill in the palette */
-	SDL_Palette* palette = SDL_GetSurfacePalette(icon);
+	SDL_Palette* palette = SDL_CreateSurfacePalette(icon);
 	for ( i=0; i<num_colors; ++i ) {
 		buf = xpm[index++];
 		p = *buf;

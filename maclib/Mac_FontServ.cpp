@@ -383,7 +383,7 @@ FontServ:: TextImage(const char *text, MFont *font, Uint8 style,
 
 	/* Map the image and return */
 	SDL_SetSurfaceColorKey(image, true, 0);
-	SDL_Palette* palette = SDL_GetSurfacePalette(image);
+	SDL_Palette* palette = SDL_CreateSurfacePalette(image);
 	SDL_SetPaletteColors(palette, &background, 0, 1);
 	SDL_SetPaletteColors(palette, &foreground, 1, 1);
 	++text_allocated;
@@ -408,8 +408,11 @@ FontServ:: InvertText(SDL_Surface *text)
 
 	/* Swap background and foreground colors */
 	SDL_Palette* palette = SDL_GetSurfacePalette(text);
-	colors[0] = palette->colors[1];
-	colors[1] = palette->colors[0];
-	SDL_SetPaletteColors(palette, colors, 0, 2);
+	SDL_assert(palette);
+	if (palette) {
+		colors[0] = palette->colors[1];
+		colors[1] = palette->colors[0];
+		SDL_SetPaletteColors(palette, colors, 0, 2);
+	}
 	return(0);
 }

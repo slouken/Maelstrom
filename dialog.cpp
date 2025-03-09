@@ -31,7 +31,7 @@ Mac_Button::Mac_Button(int x, int y, int width, int height,
 		SetError("%s", SDL_GetError());
 		return;
 	}
-	SDL_Palette* palette = SDL_GetSurfacePalette(button);
+	SDL_Palette* palette = SDL_CreateSurfacePalette(button);
 	if (palette) {
 		palette->colors[0].r = 0xFF;
 		palette->colors[0].g = 0xFF;

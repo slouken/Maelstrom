@@ -138,6 +138,7 @@ public:
 
 		/* Map the bitmap image */
 		SDL_Palette* palette = SDL_GetSurfacePalette(button);
+		SDL_assert(palette);
 		if (palette) {
 			palette->colors[0].r = R_bg;
 			palette->colors[0].g = G_bg;
@@ -333,6 +334,7 @@ public:
 
 		/* Map the checkbox text */
 		SDL_Palette* palette = SDL_GetSurfacePalette(label);
+		SDL_assert(palette);
 		if (palette) {
 			palette->colors[1].r = R_fg;
 			palette->colors[1].g = G_fg;
@@ -458,6 +460,7 @@ public:
 			radio->sensitive.y += Yoff;
 
 			SDL_Palette* palette = SDL_GetSurfacePalette(radio->label);
+			SDL_assert(palette);
 			if (palette) {
 				palette->colors[1].r = R_fg;
 				palette->colors[1].g = G_fg;
