@@ -4,7 +4,7 @@
 */
 #include <ctype.h>
 
-#include <SDL3_net/SDL_net.h>
+#include "SDL_net.h"
 
 #include "Maelstrom_Globals.h"
 #include "netscore.h"
@@ -12,15 +12,12 @@
 
 #define NUM_SCORES	10		// Copied from scores.cc 
 
-#if 0
 static TCPsocket Goto_ScoreServer(const char *server, int port);
 static void Leave_ScoreServer(TCPsocket remote);
-#endif
 
 /* This function actually registers the high scores */
 void RegisterHighScore(Scores high)
 {
-#if 0
 	TCPsocket remote;
 	int i, n;
 	unsigned char key[KEY_LEN];
@@ -73,10 +70,8 @@ void RegisterHighScore(Scores high)
 	} else
 		perror("Read error on socket");
 	Leave_ScoreServer(remote);
-#endif
 }
 
-#if 0
 /* This function is just a hack */
 int GetLine(TCPsocket remote, char *buffer, int maxlen)
 {
@@ -118,16 +113,10 @@ int GetLine(TCPsocket remote, char *buffer, int maxlen)
 	*buffer = '\0';
 	return(packed);
 }
-#endif
 
 /* Load the scores from the network score server */
 int NetLoadScores(void)
 {
-#if 1
-	error(
-		"Warning: Couldn't connect to Maelstrom Score Server.\r\n");
-	return(-1);
-#else
 	TCPsocket remote;
 	int  i;
 	char netbuf[1024], *ptr;
@@ -186,14 +175,12 @@ int NetLoadScores(void)
         }
 	Leave_ScoreServer(remote);
 	return(0);
-#endif
 }
 
-#if 0
 static TCPsocket Goto_ScoreServer(const char *server, int port)
 {
 	TCPsocket remote;
-	SDLNet_Address remote_address;
+	IPaddress remote_address;
 
 	if ( SDLNet_Init() < 0 ) {
 		return(NULL);
@@ -221,4 +208,3 @@ static void Leave_ScoreServer(TCPsocket remote)
 	SDLNet_TCP_Close(remote);
 	SDLNet_Quit();
 }
-#endif
