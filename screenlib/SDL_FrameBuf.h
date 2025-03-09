@@ -30,7 +30,7 @@
 #include <string.h>
 #include <stdarg.h>
 
-#include "SDL.h"
+#include <SDL3/SDL.h>
 
 typedef enum {
 	DOCLIP,

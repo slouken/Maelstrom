@@ -1,7 +1,7 @@
 
 /*  A simple menu button class -- only handles mouse input */
 
-#include "SDL_types.h"
+#include <SDL3/SDL.h>
 
 
 class ButtonList {

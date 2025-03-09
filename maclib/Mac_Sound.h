@@ -24,7 +24,7 @@
 #include <stdio.h>
 #include <stdarg.h>
 #include <string.h>
-#include "SDL_types.h"
+#include <SDL3/SDL.h>
 #include "SDL_mutex.h"
 #include "SDL_thread.h"
 #include "SDL_audio.h"

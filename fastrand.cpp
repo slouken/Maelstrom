@@ -5,7 +5,7 @@
 #include <stdio.h>
 #include <time.h>
 
-#include "SDL_types.h"
+#include <SDL3/SDL.h>
 
 static Uint32 randomSeed;
 

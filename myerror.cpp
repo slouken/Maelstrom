@@ -9,7 +9,7 @@
 #include <string.h>
 #include <errno.h>
 
-#include "SDL.h"
+#include <SDL3/SDL.h>
 
 
 void error(const char *fmt, ...)
