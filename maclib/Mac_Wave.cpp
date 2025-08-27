@@ -107,7 +107,7 @@ Wave:: Load(const char *wavefile, Uint16 desired_rate)
 	Init();
 
 	/* Load the WAVE file */
-	if ( SDL_LoadWAV(wavefile, &spec, &samples, &sound_datalen) == NULL ) {
+	if ( !SDL_LoadWAV(wavefile, &spec, &samples, &sound_datalen) ) {
 		error("%s", SDL_GetError());
 		return(-1);
 	}
