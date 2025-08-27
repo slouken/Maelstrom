@@ -3,7 +3,7 @@
 
 #define MAX_GAMMA	8
 
-static SDL_Color colors[1+MAX_GAMMA][256] = {
+static const SDL_Color colors[1+MAX_GAMMA][256] = {
 	/* Gamma level 0 */
 	{
 		{ 0xff, 0xff, 0xff, 0xff },  /* Pixel 0 */

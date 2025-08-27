@@ -78,7 +78,7 @@ static void PrintSurface(const char *title, SDL_Surface *surface)
 
 int
 FrameBuf:: Init(int width, int height, Uint32 video_flags,
-					SDL_Color *colors, SDL_Surface *icon)
+					const SDL_Color *colors, SDL_Surface *icon)
 {
 	window = SDL_CreateWindow( "", width, height, video_flags);
 	if ( window == NULL )
@@ -211,7 +211,7 @@ FrameBuf:: ~FrameBuf()
 
 /* Setup routines */
 void
-FrameBuf:: SetPalette(SDL_Color *colors)
+FrameBuf:: SetPalette(const SDL_Color *colors)
 {
 	SDL_SetPaletteColors(palette, colors, 0, 256);
 
