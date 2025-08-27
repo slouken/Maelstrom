@@ -715,7 +715,7 @@ extern "C" void CleanUp(void)
 
 /* ----------------------------------------------------------------- */
 /* -- Perform some initializations and report failure if we choke */
-int DoInitializations(Uint32 video_flags)
+int DoInitializations(SDL_WindowFlags video_flags)
 {
 	LibPath library;
 	int i;

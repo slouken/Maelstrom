@@ -19,7 +19,7 @@
 #include "checksum.h"
 
 /* External functions used in this file */
-extern int DoInitializations(Uint32 video_flags);		/* init.cc */
+extern int DoInitializations(SDL_WindowFlags video_flags);		/* init.cc */
 
 static const char *Version =
 "Maelstrom v1.4.3 (GPL version 3.0.7) -- 02/01/2021 by Sam Lantinga\n";
@@ -172,7 +172,7 @@ int main(int argc, char *argv[])
 	/* Command line flags */
 	int doprinthigh = 0;
 	int speedtest = 0;
-	Uint32 video_flags = SDL_WINDOW_FULLSCREEN;
+	SDL_WindowFlags video_flags = SDL_WINDOW_FULLSCREEN;
 
 	/* Normal variables */
 	SDL_Event event;

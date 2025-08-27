@@ -77,7 +77,7 @@ static void PrintSurface(const char *title, SDL_Surface *surface)
 }
 
 int
-FrameBuf:: Init(int width, int height, Uint32 video_flags,
+FrameBuf:: Init(int width, int height, SDL_WindowFlags video_flags,
 					const SDL_Color *colors, SDL_Surface *icon)
 {
 	window = SDL_CreateWindow( "", width, height, video_flags);
