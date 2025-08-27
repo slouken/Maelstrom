@@ -290,7 +290,7 @@ FrameBuf:: Update(int auto_update)
 void
 FrameBuf:: UpdateScreen(void)
 {
-	if ( SDL_LockTexture(texture, NULL, &staging->pixels, &staging->pitch) == 0 ) {
+	if ( SDL_LockTexture(texture, NULL, &staging->pixels, &staging->pitch) ) {
 		int w = staging->w;
 		int h = staging->h;
 		int row, col;
