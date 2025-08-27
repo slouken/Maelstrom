@@ -685,7 +685,7 @@ FrameBuf:: LoadImage(Uint16 w, Uint16 h, Uint8 *pixels, Uint8 *mask)
 		Uint8 colorkey, m;
 
 		/* Look for an unused palette entry */
-		memset(used, 0, 256);
+		memset(used, 0, sizeof(used));
 		pix_mem = pixels;
 		for ( i=(w*h); i!=0; --i ) {
 			++used[*pix_mem];
