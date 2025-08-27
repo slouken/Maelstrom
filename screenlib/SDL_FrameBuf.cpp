@@ -77,8 +77,8 @@ static void PrintSurface(const char *title, SDL_Surface *surface)
 }
 
 int
-FrameBuf:: Init(int width, int height, Uint32 video_flags,
-					SDL_Color *colors, SDL_Surface *icon)
+FrameBuf:: Init(int width, int height, SDL_WindowFlags video_flags,
+					const SDL_Color *colors, SDL_Surface *icon)
 {
 	window = SDL_CreateWindow( "", width, height, video_flags);
 	if ( window == NULL )
@@ -211,7 +211,7 @@ FrameBuf:: ~FrameBuf()
 
 /* Setup routines */
 void
-FrameBuf:: SetPalette(SDL_Color *colors)
+FrameBuf:: SetPalette(const SDL_Color *colors)
 {
 	SDL_SetPaletteColors(palette, colors, 0, 256);
 
@@ -290,7 +290,7 @@ FrameBuf:: Update(int auto_update)
 void
 FrameBuf:: UpdateScreen(void)
 {
-	if ( SDL_LockTexture(texture, NULL, &staging->pixels, &staging->pitch) == 0 ) {
+	if ( SDL_LockTexture(texture, NULL, &staging->pixels, &staging->pitch) ) {
 		int w = staging->w;
 		int h = staging->h;
 		int row, col;
@@ -540,7 +540,7 @@ static inline void memswap(Uint8 *dst, Uint8 *src, Uint8 len)
 	}
 #else
 	/* Swap two buffers using a temporary variable */
-	register Uint8 tmp;
+	Uint8 tmp;
 
 	while ( len-- ) {
 		tmp = *dst;
@@ -685,7 +685,7 @@ FrameBuf:: LoadImage(Uint16 w, Uint16 h, Uint8 *pixels, Uint8 *mask)
 		Uint8 colorkey, m;
 
 		/* Look for an unused palette entry */
-		memset(used, 0, 256);
+		memset(used, 0, sizeof(used));
 		pix_mem = pixels;
 		for ( i=(w*h); i!=0; --i ) {
 			++used[*pix_mem];
