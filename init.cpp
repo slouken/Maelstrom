@@ -715,17 +715,14 @@ extern "C" void CleanUp(void)
 
 /* ----------------------------------------------------------------- */
 /* -- Perform some initializations and report failure if we choke */
-int DoInitializations(Uint32 video_flags)
+int DoInitializations(SDL_WindowFlags video_flags)
 {
 	LibPath library;
 	int i;
 	SDL_Surface *icon;
 
 	/* Make sure we clean up properly at exit */
-	Uint32 init_flags = (SDL_INIT_VIDEO|SDL_INIT_AUDIO);
-#ifdef SDL_INIT_JOYSTICK
-	init_flags |= SDL_INIT_JOYSTICK;
-#endif
+	Uint32 init_flags = (SDL_INIT_VIDEO|SDL_INIT_AUDIO|SDL_INIT_JOYSTICK);
 	if ( !SDL_Init(init_flags) ) {
 		init_flags &= ~SDL_INIT_JOYSTICK;
 		if ( !SDL_Init(init_flags) ) {
@@ -742,19 +739,19 @@ int DoInitializations(Uint32 video_flags)
 	// -- Create our scores file
 	LoadScores();
 
-#ifdef SDL_INIT_JOYSTICK
-	/* Initialize the first joystick */
-	SDL_JoystickID* joysticks = SDL_GetJoysticks(NULL);
-	if (joysticks) {
-		if (joysticks[0]) {
-			if (SDL_OpenJoystick(joysticks[0]) == NULL) {
-				error("Warning: Couldn't open joystick '%s' : %s\n",
-					SDL_GetJoystickName(0), SDL_GetError());
+	if (init_flags & SDL_INIT_JOYSTICK) {
+		/* Initialize the first joystick */
+		SDL_JoystickID* joysticks = SDL_GetJoysticks(NULL);
+		if (joysticks) {
+			if (joysticks[0]) {
+				if (SDL_OpenJoystick(joysticks[0]) == NULL) {
+					error("Warning: Couldn't open joystick '%s' : %s\n",
+						SDL_GetJoystickName(0), SDL_GetError());
+				}
 			}
+			SDL_free(joysticks);
 		}
-		SDL_free(joysticks);
 	}
-#endif
 
 	/* Load the Font Server */
 	fontserv = new FontServ(library.Path("Maelstrom Fonts"));

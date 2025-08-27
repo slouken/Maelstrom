@@ -21,7 +21,7 @@
 
 #include <stdlib.h>
 
-#include "SDL.h"
+#include <SDL3/SDL.h>
 #include "Mac_Resource.h"
 
 int main(int argc, char *argv[])

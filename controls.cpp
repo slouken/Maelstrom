@@ -365,7 +365,6 @@ static void HandleEvent(SDL_Event *event)
 	SDL_Keycode key;
 
 	switch (event->type) {
-#ifdef SDL_INIT_JOYSTICK
 		/* -- Handle joystick axis motion */
 		case SDL_EVENT_JOYSTICK_AXIS_MOTION:
 			/* X-Axis - rotate right/left */
@@ -411,7 +410,6 @@ static void HandleEvent(SDL_Event *event)
 				}
 			}
 			break;
-#endif
 
 		/* -- Handle key presses/releases */
 		case SDL_EVENT_KEY_DOWN:
@@ -421,6 +419,7 @@ static void HandleEvent(SDL_Event *event)
 				screen->ToggleFullScreen();
 				break;
 			}
+			SDL_FALLTHROUGH;
 		case SDL_EVENT_KEY_UP:
 			/* -- Handle normal key bindings */
 			key = event->key.key;

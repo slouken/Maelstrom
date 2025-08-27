@@ -41,13 +41,13 @@ class FrameBuf {
 
 public:
 	FrameBuf();
-	int Init(int width, int height, Uint32 video_flags,
-			SDL_Color *colors = NULL, SDL_Surface *icon = NULL);
+	int Init(int width, int height, SDL_WindowFlags video_flags,
+			const SDL_Color *colors = NULL, SDL_Surface *icon = NULL);
 	~FrameBuf();
 
 	/* Setup routines */
 	/* Set the image palette -- 256 entries */
-	void SetPalette(SDL_Color *colors);
+	void SetPalette(const SDL_Color *colors);
 	/* Set the background color -- used by Clear() */
 	void   SetBackground(Uint8 r, Uint8 g, Uint8 b);
 	/* Map an RGB value to a color pixel */
