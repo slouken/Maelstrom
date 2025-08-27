@@ -419,6 +419,7 @@ static void HandleEvent(SDL_Event *event)
 				screen->ToggleFullScreen();
 				break;
 			}
+			SDL_FALLTHROUGH;
 		case SDL_EVENT_KEY_UP:
 			/* -- Handle normal key bindings */
 			key = event->key.key;
