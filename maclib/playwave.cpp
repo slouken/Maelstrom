@@ -23,40 +23,36 @@
 #include <string.h>
 #include <stdlib.h>
 
-#include "SDL.h"
-#include "SDL_audio.h"
-#include "SDL_Mutex.h"
+#include <SDL3/SDL.h>
 #include "Mac_Wave.h"
 
-static SDL_Mutex *done;
-static Wave *wave;
-static Uint8 silence;
+static struct {
+	SDL_Semaphore *done;
+	Wave *wave;
+	Uint8 silence;
+	SDL_AudioStream *audio_stream;
+} globals;
 
-void fillerup(void *unused, Uint8 *stream, int len)
+static void SDLCALL fillerup(void *userdata, SDL_AudioStream *stream, int additional_amount, int total_amount)
 {
-	Sint32 waveleft;
-
-	/* Are we done? */
-	if ( wave->DataLeft() == 0 ) {
-		memset(stream, silence, len);
-		SDL_mutexV(done);
-		return;
+	Wave *wave = (Wave *)userdata;
+    Uint32 data_left = wave->DataLeft();
+    if (additional_amount > 0) {
+		int count_bytes = SDL_min(total_amount, (int)data_left);
+		SDL_PutAudioStreamData(stream, wave->Data(), count_bytes);
+		wave->Forward(count_bytes);
 	}
-
-	/* Fill streaming buffer */
-	waveleft = wave->DataLeft();
-	if ( waveleft > len )
-		waveleft = len;
-	memcpy(stream, wave->Data(), waveleft);
-	wave->Forward(waveleft);
+	if (data_left == 0) {
+		SDL_SignalSemaphore(globals.done);
+	}
 }
 
-void CleanUp(int status)
+static void CleanUp(int status)
 {
-	SDL_CloseAudio();
-	SDL_DestroyMutex(done);
+	SDL_DestroyAudioStream(globals.audio_stream);
+	SDL_DestroySemaphore(globals.done);
 	SDL_Quit();
-	delete wave;
+	delete globals.wave;
 	exit(status);
 }
 
@@ -67,7 +63,7 @@ int main(int argc, char *argv[])
 	SDL_AudioSpec *spec;
 	Uint16        rate;
 
-	if ( SDL_Init(SDL_INIT_AUDIO) < 0 ) {
+	if ( !SDL_Init(SDL_INIT_AUDIO) ) {
 		fprintf(stderr, "Couldn't initialize SDL: %s\n",SDL_GetError());
 		exit(1);
 	}
@@ -84,10 +80,10 @@ int main(int argc, char *argv[])
 	switch (argc) {
 		case 2:
 			/* Load the wave file into memory */
-			wave = new Wave(argv[1], rate);
-			if ( wave->Error() ) {
-				fprintf(stderr, "%s\n", wave->Error());
-				delete wave;
+			globals.wave = new Wave(argv[1], rate);
+			if ( globals.wave->Error() ) {
+				fprintf(stderr, "%s\n", globals.wave->Error());
+				delete globals.wave;
 				exit(255);
 			}
 			break;
@@ -107,11 +103,11 @@ int main(int argc, char *argv[])
 				delete macx;
 				exit(255);
 			}
-			wave = new Wave(snd, rate);
+			globals.wave = new Wave(snd, rate);
 			delete macx;
-			if ( wave->Error() ) {
-				fprintf(stderr, "%s\n", wave->Error());
-				delete wave;
+			if ( globals.wave->Error() ) {
+				fprintf(stderr, "%s\n", globals.wave->Error());
+				delete globals.wave;
 				exit(255);
 			}
 			break;
@@ -122,23 +118,28 @@ int main(int argc, char *argv[])
 								argv[0]);
 			exit(1);
 	}
-	spec = wave->Spec();
-	silence = ((spec->format&SDL_AUDIO_U8) ? 0x80 : 0x00);
-	spec->callback = fillerup;
+	spec = globals.wave->Spec();
+	globals.silence = ((spec->format&SDL_AUDIO_U8) ? 0x80 : 0x00);
+
+	globals.audio_stream = SDL_OpenAudioDeviceStream(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, spec, fillerup, globals.wave);
+	if ( globals.audio_stream == NULL ) {
+		fprintf(stderr, "%s\n", SDL_GetError());
+		CleanUp(255);
+	}
 
 #ifdef SAVE_THE_WAVES
-	if ( wave->Save("save.wav") < 0 )
-		fprintf(stderr, "Warning: %s\n", wave->Error());
+	if ( globals.wave->Save("save.wav") < 0 )
+		fprintf(stderr, "Warning: %s\n", globals.wave->Error());
 #endif
 
 	/* Create a semaphore to wait for end of play */
-	done=SDL_CreateMutex();
-	if ( done == NULL ) {
+	globals.done=SDL_CreateSemaphore(1);
+	if ( globals.done == NULL ) {
 		fprintf(stderr, "%s\n", SDL_GetError());
 		SDL_Quit();
 		exit(255);
 	}
-	SDL_mutexP(done);	/* Prime it for blocking */
+    SDL_WaitSemaphore(globals.done);	/* Prime it for blocking */
 
 	/* Set the signals */
 #ifdef SIGHUP
@@ -152,19 +153,15 @@ int main(int argc, char *argv[])
 
 	/* Show what audio format we're playing */
 	printf("Playing %#.2f seconds (%d bit %s) at %u Hz\n", 
-		(double)(wave->DataLeft()/wave->SampleSize())/wave->Frequency(),
-			wave->BitsPerSample(),
-			wave->Stereo() ? "stereo" : "mono", wave->Frequency());
+		(double)(globals.wave->DataLeft()/globals.wave->SampleSize())/globals.wave->Frequency(),
+			globals.wave->BitsPerSample(),
+			globals.wave->Stereo() ? "stereo" : "mono", globals.wave->Frequency());
 
 	/* Start the audio device */
-	if ( SDL_OpenAudio(spec, NULL) < 0 ) {
-		fprintf(stderr, "%s\n", SDL_GetError());
-		CleanUp(255);
-	}
+	SDL_ResumeAudioStreamDevice(globals.audio_stream);
 
-	/* Let the audio run, waiting until finished */
-	SDL_PauseAudio(0);
-	SDL_mutexP(done);
+	/* Waiting until finished */
+	SDL_WaitSemaphore(globals.done);
 
 	/* We're done! */
 	CleanUp(0);
