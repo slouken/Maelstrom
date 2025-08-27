@@ -540,7 +540,7 @@ static inline void memswap(Uint8 *dst, Uint8 *src, Uint8 len)
 	}
 #else
 	/* Swap two buffers using a temporary variable */
-	register Uint8 tmp;
+	Uint8 tmp;
 
 	while ( len-- ) {
 		tmp = *dst;
