@@ -57,13 +57,21 @@ public:
 
 	/* Event Routines */
 	bool PollEvent(SDL_Event *event) {
-		return SDL_PollEvent(event);
+		if (!SDL_PollEvent(event)) {
+			return false;
+		}
+		ProcessEvent(event);
+		return true;
 	}
 	void WaitEvent(SDL_Event *event) {
 		SDL_WaitEvent(event);
+		ProcessEvent(event);
+	}
+	void ProcessEvent(SDL_Event *event) {
 		if (event->type == SDL_EVENT_WINDOW_EXPOSED) {
 			UpdateScreen();
 		}
+		SDL_ConvertEventToRenderCoordinates(renderer, event);
 	}
 	void ToggleFullScreen(void) {
 		if (SDL_GetWindowFlags(window) & SDL_WINDOW_FULLSCREEN) {
