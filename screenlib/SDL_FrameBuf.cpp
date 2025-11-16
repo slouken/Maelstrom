@@ -49,7 +49,6 @@ FrameBuf:: FrameBuf()
 	window = NULL;
 	renderer = NULL;
 	texture = NULL;
-	staging = NULL;
 	screenfg = NULL;
 	screenbg = NULL;
 	palette = NULL;
@@ -99,7 +98,7 @@ FrameBuf:: Init(int width, int height, SDL_WindowFlags video_flags,
 	}
 	SDL_SetRenderVSync(renderer, 1);
 
-	texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, width, height);
+	texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_INDEX8, SDL_TEXTUREACCESS_STREAMING, width, height);
 	if ( texture == NULL ) {
 		SetError("Couldn't create texture: %s", SDL_GetError());
 		return(-1);
@@ -124,14 +123,6 @@ FrameBuf:: Init(int width, int height, SDL_WindowFlags video_flags,
 	}
 	PrintSurface("Created background", screenbg);
 
-	/* Create the staging surface */
-	staging = SDL_CreateSurfaceFrom(width, height, SDL_PIXELFORMAT_ARGB8888, NULL, 0);
-	if ( staging == NULL ) {
-		SetError("Couldn't create staging surface: %s", SDL_GetError());
-		return(-1);
-	}
-	PrintSurface("Created staging", screenbg);
-
 	/* Create the palette */
 	if ( colors ) {
 		palette = SDL_CreatePalette(256);
@@ -140,6 +131,7 @@ FrameBuf:: Init(int width, int height, SDL_WindowFlags video_flags,
 			return(-1);
 		}
 
+		SDL_SetTexturePalette(texture, palette);
 		SDL_SetSurfacePalette(screenfg, palette);
 		SDL_SetSurfacePalette(screenbg, palette);
 	}
@@ -193,8 +185,6 @@ FrameBuf:: ~FrameBuf()
 		SDL_DestroySurface(screenfg);
 	if ( screenbg )
 		SDL_DestroySurface(screenbg);
-	if ( staging )
-		SDL_DestroySurface(staging);
 	if ( blitQ )
 		delete[] blitQ;
 	if ( dirtymap )
@@ -214,13 +204,6 @@ void
 FrameBuf:: SetPalette(const SDL_Color *colors)
 {
 	SDL_SetPaletteColors(palette, colors, 0, 256);
-
-	for ( int i = 0; i < 256; ++i ) {
-		Uint8 r = palette->colors[i].r;
-		Uint8 g = palette->colors[i].g;
-		Uint8 b = palette->colors[i].b;
-		colormap[i] = SDL_MapSurfaceRGB(staging, r, g, b);
-	}
 
 	SetBackground(BGrgb[0], BGrgb[1], BGrgb[2]);
 }
@@ -290,17 +273,17 @@ FrameBuf:: Update(int auto_update)
 void
 FrameBuf:: UpdateScreen(void)
 {
-	if ( SDL_LockTexture(texture, NULL, &staging->pixels, &staging->pitch) ) {
-		int w = staging->w;
-		int h = staging->h;
-		int row, col;
+	void *pixels;
+	int pitch;
+	if ( SDL_LockTexture(texture, NULL, &pixels, &pitch) ) {
+		int w = texture->w;
+		int h = texture->h;
+		int row;
 
 		for ( row = 0; row < h; ++row ) {
 			Uint8 *src = (Uint8 *)screenfg->pixels + row * screenfg->pitch;
-			Uint32 *dst = (Uint32 *)((Uint8 *)staging->pixels + row * staging->pitch);
-			for ( col = 0; col < w; ++col ) {
-				*dst++ = colormap[ *src++ ];
-			}
+			Uint8 *dst = (Uint8 *)((Uint8 *)pixels + row * pitch);
+			SDL_memcpy(dst, src, w);
 		}
 		SDL_UnlockTexture(texture);
 	}
@@ -555,22 +538,14 @@ void
 FrameBuf:: Fade(void)
 {
 	const int max = 32;
-	Uint8 ramp[256];
-	int i, j;
+	int i;
 
 	if ( palette ) {
-		for ( j = 1; j <= max; j++ ) {
-			int v = faded ? j : max - j;
+		for ( i = 1; i <= max; i++ ) {
+			int v = faded ? i : max - i;
+			Uint8 mod = (Uint8)(255 * v / max);
 
-			for ( i = 0; i < 256; ++i ) {
-				ramp[i] = (Uint8)(i * v / max);
-			}
-			for ( i = 0; i < 256; ++i ) {
-				Uint8 r = ramp[palette->colors[i].r];
-				Uint8 g = ramp[palette->colors[i].g];
-				Uint8 b = ramp[palette->colors[i].b];
-				colormap[i] = SDL_MapSurfaceRGB(staging, r, g, b);
-			}
+			SDL_SetTextureColorMod(texture, mod, mod, mod);
 			UpdateScreen();
 
 			// Prevent the "busy" cursor on macOS

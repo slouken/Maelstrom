@@ -155,13 +155,11 @@ private:
 	SDL_Window *window;
 	SDL_Renderer *renderer;
 	SDL_Texture *texture;
-	SDL_Surface *staging;
 	SDL_Surface *screen;
 	SDL_Surface *screenfg;
 	SDL_Surface *screenbg;
 	SDL_Palette *palette;
 	Uint8 *screen_mem;
-	Uint32 colormap[256];
 	bool faded;
 
 	/* Error message */
