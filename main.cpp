@@ -172,7 +172,7 @@ int main(int argc, char *argv[])
 	/* Command line flags */
 	int doprinthigh = 0;
 	int speedtest = 0;
-	SDL_WindowFlags video_flags = SDL_WINDOW_FULLSCREEN;
+	SDL_WindowFlags video_flags = SDL_WINDOW_FULLSCREEN | SDL_WINDOW_RESIZABLE;
 
 	/* Normal variables */
 	SDL_Event event;

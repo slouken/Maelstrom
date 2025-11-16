@@ -56,11 +56,14 @@ public:
 	void   ClipBlit(SDL_Rect *cliprect);
 
 	/* Event Routines */
-	int PollEvent(SDL_Event *event) {
-		return(SDL_PollEvent(event));
+	bool PollEvent(SDL_Event *event) {
+		return SDL_PollEvent(event);
 	}
-	int WaitEvent(SDL_Event *event) {
-		return(SDL_WaitEvent(event));
+	void WaitEvent(SDL_Event *event) {
+		SDL_WaitEvent(event);
+		if (event->type == SDL_EVENT_WINDOW_EXPOSED) {
+			UpdateScreen();
+		}
 	}
 	void ToggleFullScreen(void) {
 		if (SDL_GetWindowFlags(window) & SDL_WINDOW_FULLSCREEN) {
