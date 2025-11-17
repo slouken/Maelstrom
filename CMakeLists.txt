@@ -62,7 +62,7 @@ set(MAELSTROM_SOURCES
 add_executable(Maelstrom WIN32 ${MAELSTROM_SOURCES})
 target_link_libraries(Maelstrom PRIVATE netlogic SDLscreen SDLmac)
 target_link_libraries(Maelstrom PRIVATE SDL3::SDL3)
-target_link_libraries(Maelstrom PRIVATE SDL2_net)
+target_link_libraries(Maelstrom PRIVATE SDL3_net::SDL3_net)
 
 file(GLOB images "Images/*.bmp" "Images/*.cicn")
 install(TARGETS Maelstrom DESTINATION "${GAME_INSTALLDIR}")

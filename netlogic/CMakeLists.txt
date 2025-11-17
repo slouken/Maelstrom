@@ -20,4 +20,4 @@ add_library(netlogic STATIC
 )
 target_include_directories(netlogic PUBLIC "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>")
 target_link_libraries(netlogic PRIVATE SDLscreen)
-target_link_libraries(netlogic PRIVATE SDL2_net)
+target_link_libraries(netlogic PRIVATE SDL3_net::SDL3_net)
