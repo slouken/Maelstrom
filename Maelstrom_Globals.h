@@ -38,10 +38,6 @@ extern void   Message(const char *message);
 // Functions from init.cc
 extern void  SetStar(int which);
 
-// Functions from netscore.cc
-extern void  RegisterHighScore(Scores high);
-extern int   NetLoadScores(void);
-
 // External variables...
 // in main.cc : 
 extern Bool	gUpdateBuffer;

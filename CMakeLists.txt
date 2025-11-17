@@ -36,8 +36,6 @@ set(MAELSTROM_SOURCES
     Maelstrom.h
     Maelstrom_Globals.h
     buttonlist.h
-    checksum.cpp
-    checksum.h
     colortable.h
     controls.cpp
     controls.h
@@ -52,8 +50,6 @@ set(MAELSTROM_SOURCES
     main.cpp
     myerror.cpp
     myerror.h
-    netscore.cpp
-    netscore.h
     public_key.h
     rect.cpp
     rect.h

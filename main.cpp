@@ -16,7 +16,6 @@
 #include "buttonlist.h"
 #include "load.h"
 #include "fastrand.h"
-#include "checksum.h"
 
 /* External functions used in this file */
 extern int DoInitializations(SDL_WindowFlags video_flags);		/* init.cc */
@@ -151,7 +150,7 @@ static void RunSpeedTest(void)
 static char *progname;
 void PrintUsage(void)
 {
-	error("\nUsage: %s [-netscores] -printscores\n", progname);
+	error("\nUsage: %s -printscores\n", progname);
 	error("or\n");
 	error("Usage: %s <options>\n\n", progname);
 	error("Where <options> can be any of:\n\n"
@@ -177,11 +176,6 @@ int main(int argc, char *argv[])
 	/* Normal variables */
 	SDL_Event event;
 	LibPath::SetExePath(argv[0]);
-
-#ifndef __WIN95__
-	/* The first thing we do is calculate our checksum */
-	(void) checksum();
-#endif /* ! Win95 */
 
 	/* Seed the random number generator */
 	SeedRandom(0L);
@@ -239,17 +233,8 @@ int main(int argc, char *argv[])
 			++argv;
 			--argc;
 		}
-#define CHECKSUM_DEBUG
-#ifdef CHECKSUM_DEBUG
-		else if ( strcmp(argv[1], "-checksum") == 0 ) {
-			mesg("Checksum = %s\n", get_checksum(NULL, 0));
-			exit(0);
-		}
-#endif /* CHECKSUM_DEBUG */
 		else if ( strcmp(argv[1], "-printscores") == 0 )
 			doprinthigh = 1;
-		else if ( strcmp(argv[1], "-netscores") == 0 )
-			gNetScores = 1;
 		else if ( strcmp(argv[1], "-speedtest") == 0 )
 			speedtest = 1;
 		else if ( LogicParseArgs(&argv, &argc) == 0 ) {
