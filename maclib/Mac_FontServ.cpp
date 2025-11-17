@@ -226,7 +226,7 @@ FontServ:: TextWidth(const char *text, MFont *font, Uint8 style)
 					break;
 		default:		return(0);
 	}
-	nchars = strlen(text);
+	nchars = (int)strlen(text);
 
 	Width = 0;
 	for ( i = 0; i < nchars; ++i ) {
@@ -336,7 +336,7 @@ FontServ:: TextImage(const char *text, MFont *font, Uint8 style,
 
 	/* Print the individual characters */
 	/* Note: this could probably be optimized.. eh, who cares. :) */
-	nchars = strlen(text);
+	nchars = (int)strlen(text);
 	for ( boldness=0; boldness <= bold_offset; ++boldness ) {
 		bit_offset=0;
 		for ( i = 0; i < nchars; ++i ) {

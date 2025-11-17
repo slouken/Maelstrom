@@ -581,7 +581,7 @@ public:
 					*current->variable = '\0';
 					current->hilite = 0;
 				} else if ( *current->variable ) {
-					n = strlen(current->variable);
+					n = (int)strlen(current->variable);
 					current->variable[n-1] = '\0';
 				}
 				Update_Entry(current);
@@ -594,7 +594,7 @@ public:
 				// FIXME: We should use SDL_EVENT_TEXT_INPUT, but this class isn't used, so...
 				if ( key <= 0x7F ) {
 					current->hilite = 0;
-					n = strlen(current->variable);
+					n = (int)strlen(current->variable);
 					current->variable[n] = (char)key;
 					current->variable[n+1] = '\0';
 					Update_Entry(current);

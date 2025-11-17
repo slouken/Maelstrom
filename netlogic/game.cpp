@@ -827,7 +827,7 @@ static void DoGameOver(void)
 				if ( chars_in_handle + len < 15 ) {
 					sound->PlaySound(gShotSound, 5);
 					SDL_memcpy( &handle[chars_in_handle], event.text.text, len );
-					chars_in_handle += len;
+					chars_in_handle += (int)len;
 				} else {
 					sound->PlaySound(gBonk, 5);
 				}
