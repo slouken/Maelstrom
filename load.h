@@ -9,18 +9,6 @@
 #define F_OK	0
 #define access	_access
 #else
-#ifdef macintosh
-static inline char *strdup(const char *str)
-{
-	char *newstr;
-	
-	newstr = (char *)malloc(strlen(str)+1);
-	if ( newstr ) {
-		strcpy(newstr, str);
-	}
-	return(newstr);
-}
-#endif
 #if defined(unix) || defined(__MACH__) || defined(__BEOS__)
 #include <unistd.h>
 #endif
@@ -29,21 +17,8 @@ static inline char *strdup(const char *str)
 #include "SDL_FrameBuf.h"
 
 /* Pathing stuff for the different operating systems */
-#if defined(unix) || defined(__MACH__)
 #define DIR_SEP	"/"
 #define CUR_DIR	"."
-#elif defined(WIN32)
-#define DIR_SEP	"/"
-#define CUR_DIR	"."
-#elif defined(__BEOS__)
-#define DIR_SEP	"/"
-#define CUR_DIR	"."
-#elif defined(macintosh)
-#define DIR_SEP	":"
-#define CUR_DIR	":"
-#else
-#error Unspecified platform!
-#endif /* Choose your platform */
 
 #ifndef LIBDIR
 #if defined(unix) || defined(__MACH__)
@@ -104,7 +79,7 @@ public:
 		if ( path != NULL )
 			delete[] path;
 
-#ifdef __MACOSX__
+#ifdef SDL_PLATFORM_MACOS
 		pathlen = strlen(directory)+strlen("/../Resources/")+strlen(filename)+1;
 		path = new char[pathlen];
 		SDL_snprintf(path, pathlen, "%s/../Resources/%s", directory, filename);

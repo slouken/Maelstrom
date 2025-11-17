@@ -232,7 +232,7 @@ static FILE *Open_MacRes(char **original, Uint32 *resbase)
 			break;
 		}
 
-#ifdef __MACOSX__
+#ifdef SDL_PLATFORM_MACOS
 		newname = new char[strlen(dirname)+strlen("/../Resources/")+strlen(basename)+1];
 		sprintf(newname, "%s/../Resources/%s", dirname, basename);
 		if ( (resfile=fopen(newname, "rb")) != NULL ) {
@@ -371,11 +371,9 @@ Mac_Resource:: Mac_Resource(const char *file)
 				fseek(filep, cur_offset, SEEK_SET);
 			}
 		}
-#ifndef macintosh
 		/* Sort the resources in ascending order. :) */
-		qsort(Resources[i].list,Resources[i].count,
+		SDL_qsort(Resources[i].list,Resources[i].count,
 					sizeof(struct resource), Res_cmp);
-#endif
 	}
 	delete[] ref_offsets;
 }

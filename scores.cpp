@@ -3,13 +3,13 @@
    This file handles the cheat dialogs and the high score file
 */
 
-#ifdef unix
+#include <SDL3/SDL.h>
+
+#ifdef SDL_PLATFORM_UNIX
 #include <sys/types.h>
 #include <sys/stat.h>
 #endif
 #include <stdio.h>
-
-#include <SDL3/SDL.h>
 
 #include "Maelstrom_Globals.h"
 #include "load.h"
@@ -51,7 +51,7 @@ void SaveScores(void)
 	SavePath path;
 	SDL_IOStream *scores_src;
 	int i;
-#ifdef unix
+#ifdef SDL_PLATFORM_UNIX
 	int omask = umask(SCORES_PERMMASK);
 #endif
 	scores_src = SDL_IOFromFile(path.Path(MAELSTROM_SCORES), "wb");
@@ -67,7 +67,7 @@ void SaveScores(void)
 		error("Warning: Couldn't save scores to %s\n",
 						path.Path(MAELSTROM_SCORES));
 	}
-#ifdef unix
+#ifdef SDL_PLATFORM_UNIX
 	umask(omask);
 #endif
 }

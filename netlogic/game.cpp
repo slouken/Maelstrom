@@ -709,12 +709,10 @@ static void DoGameOver(void)
 		final[i].Score = gPlayers[i]->GetScore();
 		final[i].Frags = gPlayers[i]->GetFrags();
 	}
-#ifndef macintosh
 	if ( gDeathMatch )
-		qsort(final,gNumPlayers,sizeof(struct FinalScore),cmp_byfrags);
+		SDL_qsort(final,gNumPlayers,sizeof(struct FinalScore),cmp_byfrags);
 	else
-		qsort(final,gNumPlayers,sizeof(struct FinalScore),cmp_byscore);
-#endif
+		SDL_qsort(final,gNumPlayers,sizeof(struct FinalScore),cmp_byscore);
 
 	screen->Fade();
 	sound->HaltSound();
